@@ -1,0 +1,517 @@
+package com.example.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import com.example.data.*
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
+
+class CompanionViewModel(private val repository: Repository) : ViewModel() {
+
+    // Main streams
+    val accounts: StateFlow<List<BSBAccount>> = repository.accounts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val cards: StateFlow<List<BSBCard>> = repository.cards
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val payments: StateFlow<List<ScheduledPayment>> = repository.payments
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val expenses: StateFlow<List<ExpenseItem>> = repository.expenses
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val notifications: StateFlow<List<AppNotification>> = repository.notifications
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Simulated Calendar Day (1 - 28)
+    private val _simulatedDay = MutableStateFlow(10)
+    val simulatedDay: StateFlow<Int> = _simulatedDay.asStateFlow()
+
+    // Free Data zero-rating status (Monetization network mode)
+    private val _freeDataMode = MutableStateFlow(true)
+    val freeDataMode: StateFlow<Boolean> = _freeDataMode.asStateFlow()
+
+    val registeredUsers: StateFlow<List<RegisteredUser>> = repository.registeredUsers
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _loggedInUser = MutableStateFlow<RegisteredUser?>(null)
+    val loggedInUser: StateFlow<RegisteredUser?> = _loggedInUser.asStateFlow()
+
+    private val _isLoggedIn = MutableStateFlow(true)
+    val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+
+    private val _pendingApproval = MutableStateFlow<PendingPurchaseApproval?>(null)
+    val pendingApproval: StateFlow<PendingPurchaseApproval?> = _pendingApproval.asStateFlow()
+
+    // Triggered status to notify user in immediate snackbar of payments executed
+    private val _paymentExecutionEvent = MutableSharedFlow<String>(replay = 0)
+    val paymentExecutionEvent: SharedFlow<String> = _paymentExecutionEvent.asSharedFlow()
+
+    init {
+        viewModelScope.launch {
+            repository.seedDatabaseIfEmpty()
+            // Check if there is any registered user to pre-load as biometric/login option
+            var user = repository.getFirstUser()
+            if (user == null) {
+                // Seed a default registered user so there is always an active profile to customize
+                val defaultUser = RegisteredUser(
+                    email = "masego@gmail.com",
+                    fullName = "Masego L. Kaelo",
+                    cellphone = "71649231",
+                    cardNumber = "4556102434529012",
+                    cardExpiry = "10/29",
+                    cardCvvOrPin = "123",
+                    passwordHash = "1234",
+                    biometricsEnabled = true,
+                    dailyCardLimit = 5000.0,
+                    smsAlertsEnabled = true,
+                    isCardFrozen = false,
+                    contactlessEnabled = true,
+                    statementFrequency = "Monthly"
+                )
+                repository.registerUser(defaultUser)
+                user = defaultUser
+            }
+            _loggedInUser.value = user
+        }
+    }
+
+    fun updateUserSettings(
+        dailyCardLimit: Double,
+        smsAlertsEnabled: Boolean,
+        isCardFrozen: Boolean,
+        contactlessEnabled: Boolean,
+        statementFrequency: String,
+        biometricsEnabled: Boolean,
+        fullName: String,
+        cellphone: String,
+        isDarkMode: Boolean,
+        onComplete: () -> Unit
+    ) {
+        viewModelScope.launch {
+            val current = _loggedInUser.value ?: repository.getFirstUser()
+            if (current != null) {
+                val updated = current.copy(
+                    fullName = fullName.trim(),
+                    cellphone = cellphone.trim(),
+                    dailyCardLimit = dailyCardLimit,
+                    smsAlertsEnabled = smsAlertsEnabled,
+                    isCardFrozen = isCardFrozen,
+                    contactlessEnabled = contactlessEnabled,
+                    statementFrequency = statementFrequency,
+                    biometricsEnabled = biometricsEnabled,
+                    isDarkMode = isDarkMode
+                )
+                repository.registerUser(updated)
+                _loggedInUser.value = updated
+                repository.addNotification(
+                    title = "Profile Preferences Updated",
+                    message = "Your security limits, bio-login, and card frozen preference has been synchronized."
+                )
+            }
+            onComplete()
+        }
+    }
+
+    fun registerCustomer(
+        email: String,
+        fullName: String,
+        cellphone: String,
+        cardNumber: String,
+        cardExpiry: String,
+        cardCvvOrPin: String,
+        passwordHash: String,
+        biometricsEnabled: Boolean,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            onResult(false, "Please enter a valid email address.")
+            return
+        }
+        if (fullName.isBlank() || fullName.length < 3) {
+            onResult(false, "Please enter a valid full name.")
+            return
+        }
+        val cleanPhone = cellphone.replace(" ", "").replace("-", "")
+        if (cleanPhone.length < 8) {
+            onResult(false, "Please enter a valid Botswana cellphone number (e.g. 71XXXXXX).")
+            return
+        }
+        val cleanCard = cardNumber.replace(" ", "").replace("-", "")
+        if (cleanCard.length < 16) {
+            onResult(false, "Please enter a valid 16-digit card number.")
+            return
+        }
+        if (cardExpiry.length < 5 || !cardExpiry.contains("/")) {
+            onResult(false, "Expiry date must be in MM/YY format.")
+            return
+        }
+        if (cardCvvOrPin.length < 3) {
+            onResult(false, "Please enter a valid 3-digit CVV or 4-digit ATM PIN.")
+            return
+        }
+        if (passwordHash.length < 4) {
+            onResult(false, "Password must be at least 4 characters long.")
+            return
+        }
+
+        viewModelScope.launch {
+            val user = RegisteredUser(
+                email = email.trim(),
+                fullName = fullName.trim(),
+                cellphone = cleanPhone,
+                cardNumber = cleanCard,
+                cardExpiry = cardExpiry.trim(),
+                cardCvvOrPin = cardCvvOrPin,
+                passwordHash = passwordHash,
+                biometricsEnabled = biometricsEnabled
+            )
+            repository.registerUser(user)
+            _loggedInUser.value = user
+            
+            // Link a custom default account matching user's register details
+            val accId = repository.addAccount(
+                BSBAccount(
+                    accountName = "BSB Ordinary Savings",
+                    accountNumber = "1024" + (1000000..9999999).random().toString(),
+                    balance = 7500.00
+                )
+            ).toInt()
+
+            val last4Digits = cleanCard.takeLast(4)
+            val maskedNo = "**** **** **** $last4Digits"
+            repository.addCard(
+                BSBCard(
+                    cardHolder = fullName,
+                    cardNumberMasked = maskedNo,
+                    cardExpiry = cardExpiry,
+                    linkedAccountId = accId,
+                    cardType = "Visa Classic Debit Card"
+                )
+            )
+
+            repository.addNotification(
+                title = "Welcome, " + fullName.split(" ").firstOrNull() + "!",
+                message = "Your profile is registered with cellphone: +267 $cellphone and card: $maskedNo linked."
+            )
+            onResult(true, "Registration successful! Welcome to Botswana Savings Bank companion.")
+        }
+    }
+
+    fun loginWithPassword(email: String, passwordHash: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val user = repository.getUserByEmail(email.trim())
+            if (user == null) {
+                onResult(false, "Profile not found. Please register first.")
+            } else if (user.passwordHash == passwordHash) {
+                _loggedInUser.value = user
+                _isLoggedIn.value = true
+                repository.addNotification(
+                    title = "Dashboard Access Granted",
+                    message = "Successfully logged in with profile: ${user.fullName}."
+                )
+                onResult(true, "Authentication successful!")
+            } else {
+                onResult(false, "Incorrect password. Please try again.")
+            }
+        }
+    }
+
+    fun loginWithBiometrics(onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val user = repository.getFirstUser()
+            if (user == null) {
+                onResult(false, "No registered profiles found. Please register.")
+            } else if (!user.biometricsEnabled) {
+                onResult(false, "Biometrics not enabled. Please log in with password and configure biometric access in settings.")
+            } else {
+                _loggedInUser.value = user
+                _isLoggedIn.value = true
+                repository.addNotification(
+                    title = "Logged in (Biometrics)",
+                    message = "Granted access to BSB dashboard via secure biological profile match."
+                )
+                onResult(true, "Authentication successful!")
+            }
+        }
+    }
+
+    fun logOut() {
+        viewModelScope.launch {
+            _isLoggedIn.value = false
+            repository.addNotification(
+                title = "Session Terminated",
+                message = "Securely logged out from active BSB interface."
+            )
+        }
+    }
+
+    fun clearAllUserData() {
+        viewModelScope.launch {
+            repository.clearUser()
+            _loggedInUser.value = null
+            _isLoggedIn.value = false
+            repository.addNotification(
+                title = "Data Reset",
+                message = "Cleared all local registered profiles from memory."
+            )
+        }
+    }
+
+    fun addAccount(name: String, number: String, balance: Double) {
+        viewModelScope.launch {
+            repository.addAccount(
+                BSBAccount(
+                    accountName = name,
+                    accountNumber = number,
+                    balance = balance
+                )
+            )
+            repository.addNotification(
+                title = "BSB Account Linked",
+                message = "Successfully linked account: $name ($number)."
+            )
+        }
+    }
+
+    fun addCard(holder: String, numberMasked: String, expiry: String, accountId: Int, cardType: String) {
+        viewModelScope.launch {
+            repository.addCard(
+                BSBCard(
+                    cardHolder = holder,
+                    cardNumberMasked = numberMasked,
+                    cardExpiry = expiry,
+                    linkedAccountId = accountId,
+                    cardType = cardType
+                )
+            )
+            val account = repository.getAccountById(accountId)
+            repository.addNotification(
+                title = "BSB Card Linked",
+                message = "Linked card ending in ${numberMasked.takeLast(4)} to account: ${account?.accountName ?: "Unknown"}."
+            )
+        }
+    }
+
+    fun addPayment(type: String, payee: String, amount: Double, day: Int, accountId: Int, cardId: Int?) {
+        viewModelScope.launch {
+            repository.addPayment(
+                ScheduledPayment(
+                    paymentType = type,
+                    payeeName = payee,
+                    amount = amount,
+                    paymentDay = day,
+                    selectedAccountId = accountId,
+                    selectedCardId = cardId,
+                    isActive = true
+                )
+            )
+            repository.addNotification(
+                title = "Payment Auto-Rule Configured",
+                message = "Configured P${String.format("%.2f", amount)} rules for $payee on day $day."
+            )
+        }
+    }
+
+    fun deletePayment(payment: ScheduledPayment) {
+        viewModelScope.launch {
+            repository.deletePayment(payment)
+            repository.addNotification(
+                title = "Scheduled Rule Cancelled",
+                message = "The scheduled payment rules for ${payment.payeeName} have been deleted."
+            )
+        }
+    }
+
+    fun addManualExpense(title: String, amount: Double, category: String) {
+        viewModelScope.launch {
+            repository.addExpense(
+                ExpenseItem(
+                    title = title,
+                    amount = amount,
+                    category = category
+                )
+            )
+            repository.addNotification(
+                title = "Expense Tracked Manually",
+                message = "Added tracking item: $title (P${String.format("%.2f", amount)}) to category: $category."
+            )
+        }
+    }
+
+    fun deleteExpense(expense: ExpenseItem) {
+        viewModelScope.launch {
+            repository.deleteExpense(expense)
+        }
+    }
+
+    fun toggleFreeDataMode() {
+        viewModelScope.launch {
+            val nextVal = !_freeDataMode.value
+            _freeDataMode.value = nextVal
+            if (nextVal) {
+                repository.addNotification(
+                    title = "Monetized Free Data Active",
+                    message = "Switched to sponsored Net-Zero mode. Data charges waived under local provider sponsorships."
+                )
+            } else {
+                repository.addNotification(
+                    title = "Standard Cellular Network",
+                    message = "Switched back to standard data consumption state."
+                )
+            }
+        }
+    }
+
+    /**
+     * Advances the calendar. If we advance, we check for scheduled payments matching the new day.
+     */
+    fun advanceSimulatedDay() {
+        viewModelScope.launch {
+            var nextDay = _simulatedDay.value + 1
+            if (nextDay > 28) {
+                nextDay = 1
+            }
+            _simulatedDay.value = nextDay
+
+            // Run transaction operations for this day!
+            val count = repository.executePaymentsForDay(nextDay)
+            if (count > 0) {
+                _paymentExecutionEvent.emit("$count pending automatic payments executed for Day $nextDay!")
+            }
+        }
+    }
+
+    /**
+     * Manually triggers immediate billing execution for all scheduled payments assigned on standard day of choice.
+     */
+    fun triggerAllImmediateDue() {
+        viewModelScope.launch {
+            val currentDayVal = _simulatedDay.value
+            val count = repository.executePaymentsForDay(currentDayVal)
+            if (count > 0) {
+                _paymentExecutionEvent.emit("Forced Processing: $count automatic bills executed successfully!")
+            } else {
+                _paymentExecutionEvent.emit("No automatic bills scheduled for simulated day $currentDayVal.")
+            }
+        }
+    }
+
+    fun markNotificationAsRead(id: Int) {
+        viewModelScope.launch {
+            repository.markNotificationAsRead(id)
+        }
+    }
+
+    fun clearAllNotifications() {
+        viewModelScope.launch {
+            repository.clearNotifications()
+        }
+    }
+
+    fun triggerSimulatedPurchase(merchant: String, amount: Double) {
+        viewModelScope.launch {
+            val user = _loggedInUser.value ?: repository.getFirstUser()
+            val cardsList = repository.cards.first()
+            val cardNum = cardsList.firstOrNull()?.cardNumberMasked ?: "**** **** **** 1234"
+            _pendingApproval.value = PendingPurchaseApproval(
+                merchantName = merchant,
+                amount = amount,
+                cardNumberMasked = cardNum
+            )
+        }
+    }
+
+    fun approvePurchase(purchase: PendingPurchaseApproval, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val user = _loggedInUser.value
+            if (user != null && user.isCardFrozen) {
+                _pendingApproval.value = null
+                repository.addNotification(
+                    title = "Purchase Declined (Card Frozen)",
+                    message = "A simulated purchase of BWP ${purchase.amount} at ${purchase.merchantName} was blocked because your card is frozen."
+                )
+                onResult(false, "Transaction declined: Your card is currently frozen!")
+                return@launch
+            }
+            // Get active account
+            val accountsList = repository.accounts.first()
+            val firstAccount = accountsList.firstOrNull()
+            if (firstAccount == null) {
+                _pendingApproval.value = null
+                onResult(false, "No active BSB bank account linked!")
+                return@launch
+            }
+            if (user != null && purchase.amount > user.dailyCardLimit) {
+                _pendingApproval.value = null
+                repository.addNotification(
+                    title = "Purchase Declined (Limit Exceeded)",
+                    message = "A simulated purchase of BWP ${purchase.amount} at ${purchase.merchantName} was blocked: exceeds daily card limit."
+                )
+                onResult(false, "Transaction declined: Exceeds daily card spend limit of BWP ${user.dailyCardLimit}!")
+                return@launch
+            }
+            if (firstAccount.balance < purchase.amount) {
+                _pendingApproval.value = null
+                repository.addNotification(
+                    title = "Purchase Declined (Low Balance)",
+                    message = "A simulated purchase of BWP ${purchase.amount} at ${purchase.merchantName} failed due to insufficient funds."
+                )
+                onResult(false, "Transaction declined: Insufficient funds!")
+                return@launch
+            }
+
+            // Deduct balance
+            val updatedAccount = firstAccount.copy(balance = firstAccount.balance - purchase.amount)
+            repository.updateAccount(updatedAccount)
+            
+            // Create ExpenseItem
+            repository.addExpense(
+                ExpenseItem(
+                    title = purchase.merchantName,
+                    amount = purchase.amount,
+                    category = "Other Outflow"
+                )
+            )
+
+            // Notifications log
+            repository.addNotification(
+                title = "Purchase Approved",
+                message = "Securely authorized online checkout of BWP ${String.format("%.2f", purchase.amount)} at ${purchase.merchantName} with registered companion card."
+            )
+
+            _pendingApproval.value = null
+            onResult(true, "Transaction of BWP ${purchase.amount} authorized successfully!")
+        }
+    }
+
+    fun declinePurchase(purchase: PendingPurchaseApproval) {
+        viewModelScope.launch {
+            _pendingApproval.value = null
+            repository.addNotification(
+                title = "Purchase Blocked by Owner",
+                message = "A simulated checkout request of BWP ${String.format("%.2f", purchase.amount)} at ${purchase.merchantName} was rejected/declined."
+            )
+        }
+    }
+}
+
+data class PendingPurchaseApproval(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val merchantName: String,
+    val amount: Double,
+    val cardNumberMasked: String,
+    val timestamp: Long = System.currentTimeMillis()
+)
+
+class CompanionViewModelFactory(private val repository: Repository) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        if (modelClass.isAssignableFrom(CompanionViewModel::class.java)) {
+            @Suppress("UNCHECKED_CAST")
+            return CompanionViewModel(repository) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
+    }
+}
