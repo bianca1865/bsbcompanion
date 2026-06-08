@@ -101,6 +101,10 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         fullName: String,
         cellphone: String,
         isDarkMode: Boolean,
+        foodMaxLimit: Double = 1500.0,
+        rentMaxLimit: Double = 3000.0,
+        transportMaxLimit: Double = 1000.0,
+        savingsMaxLimit: Double = 2000.0,
         onComplete: () -> Unit
     ) {
         viewModelScope.launch {
@@ -115,7 +119,11 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     contactlessEnabled = contactlessEnabled,
                     statementFrequency = statementFrequency,
                     biometricsEnabled = biometricsEnabled,
-                    isDarkMode = isDarkMode
+                    isDarkMode = isDarkMode,
+                    foodMaxLimit = foodMaxLimit,
+                    rentMaxLimit = rentMaxLimit,
+                    transportMaxLimit = transportMaxLimit,
+                    savingsMaxLimit = savingsMaxLimit
                 )
                 repository.registerUser(updated)
                 _loggedInUser.value = updated
@@ -355,8 +363,13 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     fun advanceSimulatedDay() {
         viewModelScope.launch {
             var nextDay = _simulatedDay.value + 1
-            if (nextDay > 28) {
+            if (nextDay > 31) {
                 nextDay = 1
+                repository.clearAllExpenses()
+                repository.addNotification(
+                    title = "New Monthly Cycle Started",
+                    message = "Simulated bank cycle calendar wrapped to Day 1. Your monthly outlays expense log has been renewed!"
+                )
             }
             _simulatedDay.value = nextDay
 
@@ -365,6 +378,16 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             if (count > 0) {
                 _paymentExecutionEvent.emit("$count pending automatic payments executed for Day $nextDay!")
             }
+        }
+    }
+
+    fun clearAllExpenses() {
+        viewModelScope.launch {
+            repository.clearAllExpenses()
+            repository.addNotification(
+                title = "Expense Log Renewed",
+                message = "The monthly expense log has been successfully renewed of all past elements."
+            )
         }
     }
 

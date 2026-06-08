@@ -65,6 +65,10 @@ class Repository(private val db: AppDatabase) {
         expenseDao.deleteExpense(expense)
     }
 
+    suspend fun clearAllExpenses() {
+        expenseDao.clearAllExpenses()
+    }
+
     suspend fun addNotification(title: String, message: String) {
         val lowerTitle = title.lowercase()
         val lowerMsg = message.lowercase()

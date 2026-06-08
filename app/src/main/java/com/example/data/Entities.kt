@@ -82,5 +82,9 @@ data class RegisteredUser(
     val isCardFrozen: Boolean = false,
     val contactlessEnabled: Boolean = true,
     val statementFrequency: String = "Monthly",
-    val isDarkMode: Boolean = true
+    val isDarkMode: Boolean = true,
+    val foodMaxLimit: Double = 1500.0,
+    val rentMaxLimit: Double = 3000.0,
+    val transportMaxLimit: Double = 1000.0,
+    val savingsMaxLimit: Double = 2000.0
 )

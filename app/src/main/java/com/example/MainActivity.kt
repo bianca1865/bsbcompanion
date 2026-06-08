@@ -1764,8 +1764,13 @@ fun OverviewScreen(
   val currentMonthTotal = expenses.sumOf { it.amount }
   val budgetProgress = if (budgetLimit > 0) (currentMonthTotal / budgetLimit).coerceIn(0.0, 1.0) else 0.0
 
-  // Student Allowance Allocator state (Base targets P2200)
-  var selectedPresetName by remember { mutableStateOf("Balanced Plan") }
+  // Student Allowance Allocator state with Profile custom limits
+  val loggedInUser by viewModel.loggedInUser.collectAsStateWithLifecycle()
+  val foodLimit = loggedInUser?.foodMaxLimit?.toFloat() ?: 1500f
+  val rentLimit = loggedInUser?.rentMaxLimit?.toFloat() ?: 3000f
+  val transportLimit = loggedInUser?.transportMaxLimit?.toFloat() ?: 1000f
+  val savingsLimit = loggedInUser?.savingsMaxLimit?.toFloat() ?: 2000f
+
   var foodAlloc by remember { mutableStateOf(1000f) }
   var rentAlloc by remember { mutableStateOf(700f) }
   var transportAlloc by remember { mutableStateOf(250f) }
@@ -1918,10 +1923,13 @@ fun OverviewScreen(
         .height(180.dp)
     )
 
+    val foodAllocCoerced = foodAlloc.coerceIn(100f, foodLimit.coerceAtLeast(101f))
+    val rentAllocCoerced = rentAlloc.coerceIn(100f, rentLimit.coerceAtLeast(101f))
+    val transportAllocCoerced = transportAlloc.coerceIn(50f, transportLimit.coerceAtLeast(51f))
+    val savingsAllocCoerced = savingsAlloc.coerceIn(0f, savingsLimit.coerceAtLeast(1f))
+
     // 4. Interactive Live Student Allowance Allocator (Budget Planner)
-    val totalAllocated = foodAlloc + rentAlloc + transportAlloc + savingsAlloc
-    val remainingAllowance = 2200f - totalAllocated
-    val progressOfAllowance = (totalAllocated / 2200f).coerceIn(0f, 1f)
+    val totalAllocated = foodAllocCoerced + rentAllocCoerced + transportAllocCoerced + savingsAllocCoerced
 
     Card(
       colors = CardDefaults.cardColors(containerColor = NavySurface),
@@ -1930,40 +1938,23 @@ fun OverviewScreen(
       modifier = Modifier.fillMaxWidth()
     ) {
       Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Preset Chips
         Row(
           modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(6.dp)
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
         ) {
-          listOf(
-            "Balanced Plan" to listOf(1000f, 700f, 250f, 250f),
-            "Frugal Saver" to listOf(800f, 600f, 200f, 600f),
-            "Saver Extra" to listOf(900f, 700f, 200f, 400f)
-          ).forEach { (presetName, values) ->
-            val isSelected = selectedPresetName == presetName
-            Box(
-              modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(if (isSelected) CoralOrange else NavyPrimary)
-                .clickable {
-                  selectedPresetName = presetName
-                  foodAlloc = values[0]
-                  rentAlloc = values[1]
-                  transportAlloc = values[2]
-                  savingsAlloc = values[3]
-                }
-                .padding(vertical = 6.dp),
-              contentAlignment = Alignment.Center
-            ) {
-              Text(
-                text = presetName,
-                color = if (isSelected) NavyBackground else TextPrimary,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
-              )
-            }
-          }
+          Text(
+            text = "Allowance Allocator & Planner",
+            color = CoralOrange,
+            fontWeight = FontWeight.Black,
+            fontSize = 13.sp
+          )
+          Text(
+            text = "Total Planned: BWP ${totalAllocated.toInt()}",
+            color = GoldOrange,
+            fontWeight = FontWeight.Black,
+            fontSize = 12.sp
+          )
         }
 
         HorizontalDivider(color = NavyPrimary, thickness = 1.dp)
@@ -1984,12 +1975,12 @@ fun OverviewScreen(
                 Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
                 Text("Food & Dining", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
-              Text("BWP ${foodAlloc.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+              Text("BWP ${foodAllocCoerced.toInt()} / Max ${foodLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
             }
             Slider(
-              value = foodAlloc,
-              onValueChange = { foodAlloc = it; selectedPresetName = "Custom" },
-              valueRange = 100f..1200f,
+              value = foodAllocCoerced,
+              onValueChange = { foodAlloc = it },
+              valueRange = 100f..foodLimit.coerceAtLeast(101f),
               colors = SliderDefaults.colors(
                 thumbColor = CoralOrange,
                 activeTrackColor = CoralOrange,
@@ -2013,12 +2004,12 @@ fun OverviewScreen(
                 Icon(Icons.Default.Home, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
                 Text("Residence Rent / Boarding", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
-              Text("BWP ${rentAlloc.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+              Text("BWP ${rentAllocCoerced.toInt()} / Max ${rentLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
             }
             Slider(
-              value = rentAlloc,
-              onValueChange = { rentAlloc = it; selectedPresetName = "Custom" },
-              valueRange = 100f..1000f,
+              value = rentAllocCoerced,
+              onValueChange = { rentAlloc = it },
+              valueRange = 100f..rentLimit.coerceAtLeast(101f),
               colors = SliderDefaults.colors(
                 thumbColor = CoralOrange,
                 activeTrackColor = CoralOrange,
@@ -2042,12 +2033,12 @@ fun OverviewScreen(
                 Icon(CustomBusIcon, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
                 Text("Kombi & Taxi Transport", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
-              Text("BWP ${transportAlloc.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+              Text("BWP ${transportAllocCoerced.toInt()} / Max ${transportLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
             }
             Slider(
-              value = transportAlloc,
-              onValueChange = { transportAlloc = it; selectedPresetName = "Custom" },
-              valueRange = 50f..500f,
+              value = transportAllocCoerced,
+              onValueChange = { transportAlloc = it },
+              valueRange = 50f..transportLimit.coerceAtLeast(51f),
               colors = SliderDefaults.colors(
                 thumbColor = CoralOrange,
                 activeTrackColor = CoralOrange,
@@ -2071,12 +2062,12 @@ fun OverviewScreen(
                 Icon(CustomSavingsIcon, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
                 Text("Smart Emergency Savings", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
-              Text("BWP ${savingsAlloc.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+              Text("BWP ${savingsAllocCoerced.toInt()} / Max ${savingsLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
             }
             Slider(
-              value = savingsAlloc,
-              onValueChange = { savingsAlloc = it; selectedPresetName = "Custom" },
-              valueRange = 0f..800f,
+              value = savingsAllocCoerced,
+              onValueChange = { savingsAlloc = it },
+              valueRange = 0f..savingsLimit.coerceAtLeast(1f),
               colors = SliderDefaults.colors(
                 thumbColor = CoralOrange,
                 activeTrackColor = CoralOrange,
@@ -2086,57 +2077,6 @@ fun OverviewScreen(
             )
           }
         }
-
-        HorizontalDivider(color = NavyPrimary, thickness = 1.dp)
-
-        // Progress breakdown & status message
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Column {
-            if (remainingAllowance >= 0) {
-              Text(
-                text = "Stipend remaining: BWP ${remainingAllowance.toInt()}",
-                color = if (remainingAllowance == 0f) Color.Green else Color.White,
-                fontWeight = FontWeight.Black,
-                fontSize = 12.sp
-              )
-            } else {
-              Text(
-                text = "⚠️ Deficit: BWP ${Math.abs(remainingAllowance).toInt()}",
-                color = CoralOrange,
-                fontWeight = FontWeight.Black,
-                fontSize = 12.sp
-              )
-            }
-          }
-
-          Box(
-            modifier = Modifier
-              .clip(RoundedCornerShape(6.dp))
-              .background(if (remainingAllowance >= 0) Color(0x2200FF00) else Color(0x22FF0000))
-              .padding(horizontal = 8.dp, vertical = 4.dp)
-          ) {
-            Text(
-              text = if (remainingAllowance >= 0) "BALANCED" else "OVERDRAFT",
-              color = if (remainingAllowance >= 0) Color.Green else CoralOrange,
-              fontWeight = FontWeight.Black,
-              fontSize = 10.sp
-            )
-          }
-        }
-
-        LinearProgressIndicator(
-          progress = { progressOfAllowance },
-          modifier = Modifier
-            .fillMaxWidth()
-            .height(6.dp)
-            .clip(CircleShape),
-          color = if (remainingAllowance >= 0) GoldOrange else CoralOrange,
-          trackColor = NavyPrimary
-        )
       }
     }
 
@@ -2550,13 +2490,13 @@ fun AutoPayScreen(
                   )
                   
                   Text(
-                    text = "Choose a day (1 - 28) for this automated billing schedule.",
+                    text = "Choose a day (1 - 31) for this automated billing schedule.",
                     color = TextMuted,
                     fontSize = 11.sp
                   )
 
-                  // 1 to 28 Days represented as a calendar grid
-                  val daysList = (1..28).toList()
+                  // 1 to 31 Days represented as a calendar grid
+                  val daysList = (1..31).toList()
                   val columns = 7
                   val rows = daysList.chunked(columns)
 
@@ -2834,7 +2774,7 @@ fun AutoPayScreen(
                 val day = calendarDayText.toIntOrNull()
                 val accSelected = selectedAccIndex >= 0 && selectedAccIndex < accounts.size
 
-                if (payeeText.isNotBlank() && amount != null && day != null && day in 1..28 && accSelected) {
+                if (payeeText.isNotBlank() && amount != null && day != null && day in 1..31 && accSelected) {
                   val accountId = accounts[selectedAccIndex].id
                   val cardId = if (selectedCardIndex >= 0 && selectedCardIndex < cards.size) {
                     cards[selectedCardIndex].id
@@ -2854,7 +2794,7 @@ fun AutoPayScreen(
                   )
                   showAddDialog = false
                 } else {
-                  Toast.makeText(context, "Please complete fields. Day must be 1 - 28.", Toast.LENGTH_LONG).show()
+                  Toast.makeText(context, "Please complete fields. Day must be 1 - 31.", Toast.LENGTH_LONG).show()
                 }
               },
               colors = ButtonDefaults.buttonColors(containerColor = CoralOrange),
@@ -3982,6 +3922,11 @@ fun ProfileScreen(
     var draftDailyLimit by remember(loggedInUser) { mutableStateOf((loggedInUser?.dailyCardLimit ?: 5000.0).toFloat()) }
     var draftStatementFreq by remember(loggedInUser) { mutableStateOf(loggedInUser?.statementFrequency ?: "Monthly") }
     
+    var draftFoodLimit by remember(loggedInUser) { mutableStateOf((loggedInUser?.foodMaxLimit ?: 1500.0).toInt().toString()) }
+    var draftRentLimit by remember(loggedInUser) { mutableStateOf((loggedInUser?.rentMaxLimit ?: 3000.0).toInt().toString()) }
+    var draftTransportLimit by remember(loggedInUser) { mutableStateOf((loggedInUser?.transportMaxLimit ?: 1000.0).toInt().toString()) }
+    var draftSavingsLimit by remember(loggedInUser) { mutableStateOf((loggedInUser?.savingsMaxLimit ?: 2000.0).toInt().toString()) }
+    
     // Toggles
     val smsAlerts = loggedInUser?.smsAlertsEnabled ?: true
     val isCardFrozen = loggedInUser?.isCardFrozen ?: false
@@ -4122,7 +4067,7 @@ fun ProfileScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Modify Profile Details",
+                            text = "Modify Profile & Student Bounds",
                             color = CoralOrange,
                             fontWeight = FontWeight.Black,
                             fontSize = 12.sp
@@ -4153,6 +4098,77 @@ fun ProfileScreen(
                                 unfocusedTextColor = TextPrimary
                             )
                         )
+
+                        Text(
+                            text = "Custom Allocator Maximum Bounds (BWP)",
+                            color = GoldOrange,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = draftRentLimit,
+                                onValueChange = { draftRentLimit = it.filter { c -> c.isDigit() } },
+                                label = { Text("Rent Max Limit") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = CoralOrange,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                )
+                            )
+                            OutlinedTextField(
+                                value = draftFoodLimit,
+                                onValueChange = { draftFoodLimit = it.filter { c -> c.isDigit() } },
+                                label = { Text("Food Max Limit") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = CoralOrange,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                )
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedTextField(
+                                value = draftTransportLimit,
+                                onValueChange = { draftTransportLimit = it.filter { c -> c.isDigit() } },
+                                label = { Text("Transport Max") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = CoralOrange,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                )
+                            )
+                            OutlinedTextField(
+                                value = draftSavingsLimit,
+                                onValueChange = { draftSavingsLimit = it.filter { c -> c.isDigit() } },
+                                label = { Text("Savings Max") },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = CoralOrange,
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary
+                                )
+                            )
+                        }
                         
                         Button(
                             onClick = {
@@ -4165,10 +4181,14 @@ fun ProfileScreen(
                                     biometricsEnabled = biometricsEnabled,
                                     fullName = draftFullName,
                                     cellphone = draftCellphone,
-                                    isDarkMode = isDark
+                                    isDarkMode = isDark,
+                                    foodMaxLimit = draftFoodLimit.toDoubleOrNull() ?: 1500.0,
+                                    rentMaxLimit = draftRentLimit.toDoubleOrNull() ?: 3000.0,
+                                    transportMaxLimit = draftTransportLimit.toDoubleOrNull() ?: 1000.0,
+                                    savingsMaxLimit = draftSavingsLimit.toDoubleOrNull() ?: 2000.0
                                 ) {
                                     isEditMode = false
-                                    Toast.makeText(context, "Legal details updated!", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Legal details & student bounds updated!", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = CoralOrange),
@@ -4177,6 +4197,76 @@ fun ProfileScreen(
                         ) {
                             Text("SAVE NEW DETAILS", color = NavyBackground, fontWeight = FontWeight.Black)
                         }
+                    }
+                }
+            }
+        }
+
+        if (!isEditMode) {
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = NavySurface),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "📋 ACTIVE BUDGET ALLOCATION LIMITS",
+                            color = CoralOrange,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            letterSpacing = 0.5.sp
+                        )
+                        
+                        Text(
+                            text = "Modified limits dynamic feedback is applied instantly to budget sliders on the overview board.",
+                            color = TextMuted,
+                            fontSize = 11.sp
+                        )
+                        
+                        HorizontalDivider(color = NavyPrimary, thickness = 1.dp)
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Rent Bound Limit", color = TextPrimary, fontSize = 12.sp)
+                            Text("P ${String.format("%,.0f", loggedInUser?.rentMaxLimit ?: 3000.0)}", color = GoldOrange, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Food & Dining Limit", color = TextPrimary, fontSize = 12.sp)
+                            Text("P ${String.format("%,.0f", loggedInUser?.foodMaxLimit ?: 1500.0)}", color = GoldOrange, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Kombi Transport Limit", color = TextPrimary, fontSize = 12.sp)
+                            Text("P ${String.format("%,.0f", loggedInUser?.transportMaxLimit ?: 1000.0)}", color = GoldOrange, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Emergency Savings Limit", color = TextPrimary, fontSize = 12.sp)
+                            Text("P ${String.format("%,.0f", loggedInUser?.savingsMaxLimit ?: 2000.0)}", color = GoldOrange, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        
+                        Text(
+                            text = "💡 Tap 'Edit Info' above to customize your limits.",
+                            color = CoralOrange,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -4196,14 +4286,6 @@ fun ProfileScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Text(
-                        text = "🎨 DISPLAY APPARATUS VISUAL MODE",
-                        color = CoralOrange,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 11.sp,
-                        letterSpacing = 0.5.sp
-                    )
-                    
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -4229,7 +4311,11 @@ fun ProfileScreen(
                                     biometricsEnabled = biometricsEnabled,
                                     fullName = draftFullName,
                                     cellphone = draftCellphone,
-                                    isDarkMode = newVal
+                                    isDarkMode = newVal,
+                                    foodMaxLimit = loggedInUser?.foodMaxLimit ?: 1500.0,
+                                    rentMaxLimit = loggedInUser?.rentMaxLimit ?: 3000.0,
+                                    transportMaxLimit = loggedInUser?.transportMaxLimit ?: 1000.0,
+                                    savingsMaxLimit = loggedInUser?.savingsMaxLimit ?: 2000.0
                                 ) {}
                             },
                             colors = SwitchDefaults.colors(
@@ -4778,6 +4864,119 @@ fun CalendarScreen(
                     }
                   }
                 }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Monthly Transaction History (Below Calendar & Dues Details)
+    val expenses by viewModel.expenses.collectAsStateWithLifecycle(initialValue = emptyList())
+
+    Card(
+      colors = CardDefaults.cardColors(containerColor = NavySurface),
+      shape = RoundedCornerShape(16.dp),
+      border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
+      modifier = Modifier.fillMaxWidth()
+    ) {
+      Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Column {
+            Text(
+              text = "📋 MONTHLY TRANSACTION HISTORY",
+              color = CoralOrange,
+              fontWeight = FontWeight.Black,
+              fontSize = 11.sp,
+              letterSpacing = 0.5.sp
+            )
+            Text(
+              text = "Dynamic record of Pula outlays & companion additions",
+              color = TextMuted,
+              fontSize = 10.sp
+            )
+          }
+
+          if (expenses.isNotEmpty()) {
+            Button(
+              onClick = { viewModel.clearAllExpenses() },
+              colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary),
+              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+              modifier = Modifier.height(28.dp)
+            ) {
+              Text("Renew Log", color = CoralOrange, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            }
+          }
+        }
+
+        HorizontalDivider(color = NavyPrimary, thickness = 1.dp)
+
+        if (expenses.isEmpty()) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 16.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Text(
+              text = "No recorded transactions/outlays for this cycle. Excellent!",
+              color = TextMuted,
+              fontSize = 11.sp,
+              fontWeight = FontWeight.Bold
+            )
+          }
+        } else {
+          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            expenses.forEach { exp ->
+              Row(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clip(RoundedCornerShape(10.dp))
+                  .background(NavyPrimary.copy(alpha = 0.4f))
+                  .border(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f), RoundedCornerShape(10.dp))
+                  .padding(10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Column(modifier = Modifier.weight(1f)) {
+                  Text(exp.title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                  Spacer(modifier = Modifier.height(2.dp))
+                  Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                      color = NavyBackground,
+                      shape = RoundedCornerShape(4.dp)
+                    ) {
+                      Text(
+                        text = exp.category,
+                        color = CoralOrange,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                      )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                      text = java.text.SimpleDateFormat("d MMM, hh:mm a")
+                        .format(java.util.Date(exp.timestamp)),
+                      color = TextMuted,
+                      fontSize = 9.sp
+                    )
+                  }
+                }
+
+                Text(
+                  text = "P ${String.format("%.2f", exp.amount)}",
+                  color = CoralOrange,
+                  fontWeight = FontWeight.Black,
+                  fontSize = 13.sp
+                )
               }
             }
           }

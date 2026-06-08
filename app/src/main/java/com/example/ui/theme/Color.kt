@@ -20,8 +20,12 @@ val NavyBackground: Color
 val NavyDistant: Color
     get() = if (isDarkThemeGlobal) Color(0xFF2C436F) else Color(0xFFCBD5E1)
 
-val CoralOrange = Color(0xFFF15A24)       // Vibrant sunburst orange for buttons and highlights
-val GoldOrange = Color(0xFFFF8C00)        // Secondary golden orange accent
+val CoralOrange: Color
+    get() = if (isDarkThemeGlobal) Color(0xFFFEF08A) else Color(0xFFCA8A04) // Pastel yellowish for buttons and highlights
+
+val GoldOrange: Color
+    get() = if (isDarkThemeGlobal) Color(0xFF94A3B8) else Color(0xFF475569) // Grey accent
+
 val BlueAccent = Color(0xFF00B4D8)        // Extra status accent color (e.g. system is OK)
 
 val TextPrimary: Color

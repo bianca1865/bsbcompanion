@@ -67,6 +67,9 @@ interface ExpenseItemDao {
 
     @Delete
     suspend fun deleteExpense(expense: ExpenseItem)
+
+    @Query("DELETE FROM expense_items")
+    suspend fun clearAllExpenses()
 }
 
 @Dao
