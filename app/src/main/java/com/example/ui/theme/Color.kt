@@ -12,10 +12,10 @@ val NavyPrimary: Color
     get() = if (isDarkThemeGlobal) Color(0xFF0F1E36) else Color(0xFFE2E8F0)
 
 val NavySurface: Color
-    get() = if (isDarkThemeGlobal) Color(0xFF1B2E4C) else Color(0xFFFFFFFF)
+    get() = if (isDarkThemeGlobal) Color(0xA1142540) else Color(0xBFFAFAF9)
 
 val NavyBackground: Color
-    get() = if (isDarkThemeGlobal) Color(0xFF091223) else Color(0xFFF8FAFC)
+    get() = if (isDarkThemeGlobal) Color(0xFF091223) else Color(0xFFFFFFFF)
 
 val NavyDistant: Color
     get() = if (isDarkThemeGlobal) Color(0xFF2C436F) else Color(0xFFCBD5E1)
@@ -25,7 +25,7 @@ val GoldOrange = Color(0xFFFF8C00)        // Secondary golden orange accent
 val BlueAccent = Color(0xFF00B4D8)        // Extra status accent color (e.g. system is OK)
 
 val TextPrimary: Color
-    get() = if (isDarkThemeGlobal) Color(0xFFF1F5F9) else Color(0xFF0F172A)
+    get() = if (isDarkThemeGlobal) Color(0xFFF1F5F9) else Color(0xFF0C2340)
 
 val TextMuted: Color
     get() = if (isDarkThemeGlobal) Color(0xFF94A3B8) else Color(0xFF64748B)

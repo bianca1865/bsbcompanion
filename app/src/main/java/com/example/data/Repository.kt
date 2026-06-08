@@ -66,13 +66,23 @@ class Repository(private val db: AppDatabase) {
     }
 
     suspend fun addNotification(title: String, message: String) {
-        notificationDao.insertNotification(
-            AppNotification(
-                title = title,
-                message = message,
-                timestamp = System.currentTimeMillis()
+        val lowerTitle = title.lowercase()
+        val lowerMsg = message.lowercase()
+        
+        val isPayment = lowerTitle.contains("payment") || lowerTitle.contains("paid") || lowerTitle.contains("bill") || lowerTitle.contains("rule") || lowerTitle.contains("cancelled") || lowerMsg.contains("payment") || lowerMsg.contains("paid") || lowerMsg.contains("bill")
+        val isDeposit = lowerTitle.contains("deposit") || lowerTitle.contains("allowance") || lowerTitle.contains("received") || lowerTitle.contains("added") || lowerMsg.contains("deposit") || lowerMsg.contains("allowance") || lowerMsg.contains("received") || lowerMsg.contains("credit")
+        val isWithdrawal = lowerTitle.contains("withdraw") || lowerTitle.contains("deducted") || lowerTitle.contains("outflow") || lowerMsg.contains("withdraw") || lowerMsg.contains("deducted") || lowerMsg.contains("outflow")
+        val isTransaction = lowerTitle.contains("purchase") || lowerTitle.contains("declined") || lowerTitle.contains("approved") || lowerTitle.contains("blocked") || lowerTitle.contains("expense") || lowerTitle.contains("transaction") || lowerMsg.contains("purchase") || lowerMsg.contains("declined") || lowerMsg.contains("approved") || lowerMsg.contains("blocked") || lowerMsg.contains("expense") || lowerMsg.contains("transaction")
+
+        if (isPayment || isDeposit || isWithdrawal || isTransaction) {
+            notificationDao.insertNotification(
+                AppNotification(
+                    title = title,
+                    message = message,
+                    timestamp = System.currentTimeMillis()
+                )
             )
-        )
+        }
     }
 
     suspend fun markNotificationAsRead(id: Int) {
@@ -92,25 +102,17 @@ class Repository(private val db: AppDatabase) {
             // Seed BSB Accounts (BWP - Botswana Pula)
             val acc1Id = accountDao.insertAccount(
                 BSBAccount(
-                    accountName = "BSB Ordinary Savings",
+                    accountName = "BSB Student Allowance",
                     accountNumber = "10243950621",
-                    balance = 12500.00
-                )
-            ).toInt()
-
-            val acc2Id = accountDao.insertAccount(
-                BSBAccount(
-                    accountName = "Save-As-You-Earn Plan",
-                    accountNumber = "20485769123",
-                    balance = 4800.00
+                    balance = 2200.00
                 )
             ).toInt()
 
             val acc3Id = accountDao.insertAccount(
                 BSBAccount(
-                    accountName = "BSB Sesame Smart Account",
+                    accountName = "Sesame Smart Youth Savings",
                     accountNumber = "30591248560",
-                    balance = 1650.00
+                    balance = 150.00
                 )
             ).toInt()
 
@@ -121,17 +123,7 @@ class Repository(private val db: AppDatabase) {
                     cardNumberMasked = "**** **** **** 5678",
                     cardExpiry = "10/29",
                     linkedAccountId = acc1Id,
-                    cardType = "Platinum Black Card"
-                )
-            )
-
-            cardDao.insertCard(
-                BSBCard(
-                    cardHolder = "Masego L. Kaelo",
-                    cardNumberMasked = "**** **** **** 3412",
-                    cardExpiry = "05/30",
-                    linkedAccountId = acc2Id,
-                    cardType = "Visa Classic Debit Card"
+                    cardType = "Student Card"
                 )
             )
 
@@ -141,16 +133,16 @@ class Repository(private val db: AppDatabase) {
                     cardNumberMasked = "**** **** **** 1111",
                     cardExpiry = "09/31",
                     linkedAccountId = acc3Id,
-                    cardType = "Youth Debit Card"
+                    cardType = "Youth Card"
                 )
             )
 
             // Seed Scheduled Payments
             paymentDao.insertPayment(
                 ScheduledPayment(
-                    paymentType = "Wifi Subscription",
-                    payeeName = "Mascom MyHome Wifi",
-                    amount = 450.00,
+                    paymentType = "Wifi",
+                    payeeName = "Mascom Campus Wifi Pack",
+                    amount = 149.00,
                     paymentDay = 15,
                     selectedAccountId = acc1Id,
                     isActive = true
@@ -160,8 +152,8 @@ class Repository(private val db: AppDatabase) {
             paymentDao.insertPayment(
                 ScheduledPayment(
                     paymentType = "Mobile Subscription",
-                    payeeName = "Orange SuperData Plus",
-                    amount = 175.00,
+                    payeeName = "Orange Student Data Plus",
+                    amount = 99.00,
                     paymentDay = 5,
                     selectedAccountId = acc1Id,
                     isActive = true
@@ -170,9 +162,9 @@ class Repository(private val db: AppDatabase) {
 
             paymentDao.insertPayment(
                 ScheduledPayment(
-                    paymentType = "Savings Account Pot",
+                    paymentType = "Savings",
                     payeeName = "Emergency Reserve Saver",
-                    amount = 1000.00,
+                    amount = 200.00,
                     paymentDay = 25,
                     selectedAccountId = acc1Id,
                     isActive = true
@@ -182,49 +174,41 @@ class Repository(private val db: AppDatabase) {
             // Seed Expense Entries
             expenseDao.insertExpense(
                 ExpenseItem(
-                    title = "BTC Broadband Fibers",
-                    amount = 350.00,
-                    category = "Wifi",
+                    title = "Mascom Student Data",
+                    amount = 99.00,
+                    category = "Mobile Subscription",
                     timestamp = System.currentTimeMillis() - 86400000_1L // 1 day ago
                 )
             )
 
             expenseDao.insertExpense(
                 ExpenseItem(
-                    title = "Mascom Airtime Bunches",
-                    amount = 120.00,
-                    category = "Mobile Subscription",
+                    title = "University Bookstore (Study Guides)",
+                    amount = 250.00,
+                    category = "Study Materials",
                     timestamp = System.currentTimeMillis() - 86400000_2L // 2 days ago
                 )
             )
 
             expenseDao.insertExpense(
                 ExpenseItem(
-                    title = "Monthly Savings Accumulation",
-                    amount = 1200.00,
-                    category = "Savings",
+                    title = "Kombi Ride to Campus",
+                    amount = 14.50,
+                    category = "Transport",
                     timestamp = System.currentTimeMillis() - 86400000_3L // 3 days ago
                 )
             )
 
             expenseDao.insertExpense(
                 ExpenseItem(
-                    title = "General Groceries Choppies",
-                    amount = 750.00,
-                    category = "Other Outflow",
+                    title = "Campus Cafeteria Combo",
+                    amount = 45.00,
+                    category = "Food",
                     timestamp = System.currentTimeMillis() - 86400000_4L
                 )
             )
 
             // Seed Initial Notifications
-            notificationDao.insertNotification(
-                AppNotification(
-                    title = "Companion Setup Successful",
-                    message = "Your Botswana Savings Bank Companion App is configured. Linked with ordinary and savings wallets.",
-                    timestamp = System.currentTimeMillis() - 86400000,
-                    isRead = true
-                )
-            )
         }
     }
 

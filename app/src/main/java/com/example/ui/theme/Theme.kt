@@ -30,13 +30,13 @@ private val LightColorScheme =
     primary = CoralOrange,
     secondary = GoldOrange,
     tertiary = BlueAccent,
-    background = Color(0xFFF8FAFC),
-    surface = Color(0xFFFFFFFF),
+    background = Color(0xFFFFFFFF),
+    surface = Color(0xFFF8FAFC),
     onPrimary = Color(0xFFFFFFFF),
     onSecondary = Color(0xFFFFFFFF),
-    onTertiary = Color(0xFF0F172A),
-    onBackground = Color(0xFF0F172A),
-    onSurface = Color(0xFF0F172A)
+    onTertiary = Color(0xFF0C2340),
+    onBackground = Color(0xFF0C2340),
+    onSurface = Color(0xFF0C2340)
   )
 
 @Composable
