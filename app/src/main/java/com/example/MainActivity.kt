@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -42,6 +43,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -84,11 +86,136 @@ class MainActivity : ComponentActivity() {
   }
 }
 
-// Represent the 5 interactive screens of our BSB Savings Companion
+val CustomWalletIcon: ImageVector by lazy {
+  ImageVector.Builder(
+    name = "CustomWallet",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f
+  ).apply {
+    path(fill = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.White)) {
+      moveTo(21f, 18f)
+      verticalLineTo(6f)
+      curveTo(21f, 4.9f, 20.1f, 4f, 19f, 4f)
+      horizontalLineTo(5f)
+      curveTo(3.9f, 4f, 3f, 4.9f, 3f, 6f)
+      verticalLineTo(18f)
+      curveTo(3f, 19.1f, 3.9f, 20f, 5f, 20f)
+      horizontalLineTo(19f)
+      curveTo(20.1f, 20f, 21f, 19.1f, 21f, 18f)
+      close()
+    }
+  }.build()
+}
+
+val CustomBusIcon: ImageVector by lazy {
+  ImageVector.Builder(
+    name = "CustomBus",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f
+  ).apply {
+    path(fill = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.White)) {
+      moveTo(4f, 16f)
+      curveTo(4f, 17.1f, 4.9f, 18f, 6f, 18f)
+      horizontalLineTo(7f)
+      verticalLineTo(20f)
+      curveTo(7f, 20.6f, 7.4f, 21f, 8f, 21f)
+      horizontalLineTo(9f)
+      curveTo(9.6f, 21f, 10f, 20.6f, 10f, 20f)
+      verticalLineTo(18f)
+      horizontalLineTo(14f)
+      verticalLineTo(20f)
+      curveTo(14f, 20.6f, 14.4f, 21f, 15f, 21f)
+      horizontalLineTo(16f)
+      curveTo(16.6f, 21f, 17f, 20.6f, 17f, 20f)
+      verticalLineTo(18f)
+      horizontalLineTo(18f)
+      curveTo(19.1f, 18f, 20f, 17.1f, 20f, 16f)
+      verticalLineTo(6f)
+      curveTo(20f, 3f, 17f, 3f, 12f, 3f)
+      curveTo(7f, 3f, 4f, 3f, 4f, 6f)
+      verticalLineTo(16f)
+      close()
+      moveTo(6f, 6f)
+      horizontalLineTo(18f)
+      verticalLineTo(11f)
+      horizontalLineTo(6f)
+      verticalLineTo(6f)
+      close()
+      moveTo(7.5f, 15f)
+      curveTo(6.7f, 15f, 6f, 14.3f, 6f, 13.5f)
+      curveTo(6f, 12.7f, 6.7f, 12f, 7.5f, 12f)
+      curveTo(8.3f, 12f, 9f, 12.7f, 9f, 13.5f)
+      curveTo(9f, 14.3f, 8.3f, 15f, 7.5f, 15f)
+      close()
+      moveTo(16.5f, 15f)
+      curveTo(15.7f, 15f, 15f, 14.3f, 15f, 13.5f)
+      curveTo(15f, 12.7f, 15.7f, 12f, 16.5f, 12f)
+      curveTo(17.3f, 12f, 18f, 12.7f, 18f, 13.5f)
+      curveTo(18f, 14.3f, 17.3f, 15f, 16.5f, 15f)
+      close()
+    }
+  }.build()
+}
+
+val CustomSavingsIcon: ImageVector by lazy {
+  ImageVector.Builder(
+    name = "CustomSavings",
+    defaultWidth = 24.dp,
+    defaultHeight = 24.dp,
+    viewportWidth = 24f,
+    viewportHeight = 24f
+  ).apply {
+    path(fill = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.White)) {
+      moveTo(12f, 2f)
+      curveTo(6.5f, 2f, 2f, 6.5f, 2f, 12f)
+      curveTo(2f, 17.5f, 6.5f, 22f, 12f, 22f)
+      curveTo(17.5f, 22f, 22f, 17.5f, 22f, 12f)
+      curveTo(22f, 6.5f, 17.5f, 2f, 12f, 2f)
+      close()
+      moveTo(12f, 19f)
+      curveTo(8.1f, 19f, 5f, 15.9f, 5f, 12f)
+      curveTo(5f, 8.1f, 8.1f, 5f, 12f, 5f)
+      curveTo(15.9f, 5f, 19f, 8.1f, 19f, 12f)
+      curveTo(19f, 15.9f, 15.9f, 19f, 12f, 19f)
+      close()
+      moveTo(12.5f, 7f)
+      horizontalLineTo(11f)
+      verticalLineTo(8.5f)
+      horizontalLineTo(9.5f)
+      verticalLineTo(10f)
+      horizontalLineTo(11f)
+      verticalLineTo(11.5f)
+      horizontalLineTo(9.5f)
+      verticalLineTo(13f)
+      horizontalLineTo(11f)
+      verticalLineTo(15.5f)
+      curveTo(11f, 16.3f, 11.7f, 17f, 12.5f, 17f)
+      horizontalLineTo(13f)
+      verticalLineTo(15.5f)
+      horizontalLineTo(14.5f)
+      verticalLineTo(14f)
+      horizontalLineTo(13f)
+      verticalLineTo(12.5f)
+      horizontalLineTo(14.5f)
+      verticalLineTo(11f)
+      horizontalLineTo(13f)
+      verticalLineTo(8.5f)
+      curveTo(13f, 7.7f, 12.8f, 7f, 12.5f, 7f)
+      close()
+    }
+  }.build()
+}
+
+// Represent the 6 interactive screens of our BSB Savings Companion
 enum class NavigationTab(val title: String, val icon: ImageVector) {
   OVERVIEW("Overview", Icons.Default.Home),
+  CALENDAR("Calendar", Icons.Default.DateRange),
   AUTOPAY("Auto-Pay", Icons.Default.Refresh),
-  ACCOUNTS("BSB Wallets", Icons.Default.AccountBox),
+  ACCOUNTS("BSB Wallets", CustomWalletIcon),
   EXPENSES("Expenses", Icons.Default.Check),
   PROFILE("Profile", Icons.Default.Person)
 }
@@ -374,20 +501,14 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
                 Icon(
                   imageVector = tab.icon,
                   contentDescription = tab.title,
-                  tint = if (isSelected) CoralOrange else TextMuted
-                )
-              },
-              label = {
-                Text(
-                  text = tab.title,
-                  color = if (isSelected) TextPrimary else TextMuted,
-                  fontSize = 11.sp,
-                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                  tint = if (isSelected) CoralOrange else TextMuted,
+                  modifier = Modifier.size(26.dp)
                 )
               },
               colors = NavigationBarItemDefaults.colors(
                 indicatorColor = NavyPrimary
               ),
+              alwaysShowLabel = false,
               modifier = Modifier.testTag("nav_tab_${tab.name.lowercase()}")
             )
           }
@@ -423,6 +544,12 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
                 expenses = expenses,
                 selectedAccountId = selectedAccountId,
                 onAccountSelect = { selectedAccountId = it }
+              )
+              NavigationTab.CALENDAR -> CalendarScreen(
+                viewModel = viewModel,
+                payments = payments,
+                accounts = accounts,
+                simulatedDay = simulatedDay
               )
               NavigationTab.AUTOPAY -> AutoPayScreen(
                 viewModel = viewModel,
@@ -701,7 +828,7 @@ fun CompanionHeader(
         Column {
           Text(
             text = "BSB COMPANION",
-            color = Color.White,
+            color = TextPrimary,
             fontWeight = FontWeight.Black,
             fontSize = 16.sp,
             fontFamily = FontFamily.SansSerif
@@ -720,34 +847,6 @@ fun CompanionHeader(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
       ) {
-        // Compact Advance Simulated calendar button
-        Surface(
-          onClick = onAdvanceDay,
-          color = CoralOrange,
-          shape = RoundedCornerShape(8.dp),
-          modifier = Modifier.height(34.dp)
-        ) {
-          Row(
-            modifier = Modifier.padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-          ) {
-            Icon(
-              imageVector = Icons.Default.PlayArrow,
-              contentDescription = "Advance Day",
-              tint = NavyBackground,
-              modifier = Modifier.size(14.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-              text = "Day $simulatedDay",
-              color = NavyBackground,
-              fontWeight = FontWeight.Black,
-              fontSize = 11.sp
-            )
-          }
-        }
-
         // Notification Badge Bell
         IconButton(
           onClick = onNotificationClick,
@@ -879,7 +978,7 @@ fun AuthScreen(
             Column {
               Text(
                 text = "BOTSWANA SAVINGS BANK",
-                color = Color.White,
+                color = TextPrimary,
                 fontWeight = FontWeight.Black,
                 fontSize = 14.sp
               )
@@ -896,7 +995,7 @@ fun AuthScreen(
         Column {
           Text(
             text = if (isRegisterTab) "Dumelang • Join BSB App" else "Dumelang • Welcome Back",
-            color = Color.White,
+            color = TextPrimary,
             fontWeight = FontWeight.Black,
             fontSize = 24.sp,
             letterSpacing = (-0.5).sp
@@ -1036,6 +1135,7 @@ fun AuthScreen(
             Card(
               colors = CardDefaults.cardColors(containerColor = NavySurface),
               shape = RoundedCornerShape(14.dp),
+              border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
               modifier = Modifier.fillMaxWidth()
             ) {
               Row(
@@ -1247,7 +1347,8 @@ fun AuthScreen(
           // 1. PROFILE INFO
           Card(
             colors = CardDefaults.cardColors(containerColor = NavySurface),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
           ) {
             Column(
               modifier = Modifier.padding(14.dp),
@@ -1298,7 +1399,8 @@ fun AuthScreen(
           // 2. CELLPHONE SETUP
           Card(
             colors = CardDefaults.cardColors(containerColor = NavySurface),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
           ) {
             Column(
               modifier = Modifier.padding(14.dp),
@@ -1325,7 +1427,7 @@ fun AuthScreen(
                   contentAlignment = Alignment.Center
                 ) {
                   Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("+267", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("+267", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                   }
                 }
 
@@ -1357,7 +1459,8 @@ fun AuthScreen(
           // 3. BSB CARD LINKING
           Card(
             colors = CardDefaults.cardColors(containerColor = NavySurface),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
           ) {
             Column(
               modifier = Modifier.padding(14.dp),
@@ -1429,7 +1532,8 @@ fun AuthScreen(
           // 4. SECURE PASSWORD CREDENTIALS
           Card(
             colors = CardDefaults.cardColors(containerColor = NavySurface),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
           ) {
             Column(
               modifier = Modifier.padding(14.dp),
@@ -1655,10 +1759,17 @@ fun OverviewScreen(
   val activeCard = cards.find { it.linkedAccountId == activeAccountId }
 
   // Track Budget & Spending
-  var monthlyLimitText by remember { mutableStateOf("3000") }
-  val budgetLimit = monthlyLimitText.toDoubleOrNull() ?: 3000.00
+  var monthlyLimitText by remember { mutableStateOf("2200") }
+  val budgetLimit = monthlyLimitText.toDoubleOrNull() ?: 2200.00
   val currentMonthTotal = expenses.sumOf { it.amount }
   val budgetProgress = if (budgetLimit > 0) (currentMonthTotal / budgetLimit).coerceIn(0.0, 1.0) else 0.0
+
+  // Student Allowance Allocator state (Base targets P2200)
+  var selectedPresetName by remember { mutableStateOf("Balanced Plan") }
+  var foodAlloc by remember { mutableStateOf(1000f) }
+  var rentAlloc by remember { mutableStateOf(700f) }
+  var transportAlloc by remember { mutableStateOf(250f) }
+  var savingsAlloc by remember { mutableStateOf(250f) }
 
   Column(
     modifier = Modifier
@@ -1732,6 +1843,7 @@ fun OverviewScreen(
       Card(
         colors = CardDefaults.cardColors(containerColor = NavySurface),
         shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
         modifier = Modifier.fillMaxWidth()
       ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -1743,7 +1855,7 @@ fun OverviewScreen(
             Column {
               Text(
                 text = acc.accountName,
-                color = Color.White,
+                color = TextPrimary,
                 fontWeight = FontWeight.Black,
                 fontSize = 15.sp
               )
@@ -1783,9 +1895,8 @@ fun OverviewScreen(
 
     // 3. Realistic Card Image with beautiful overlays
     val cardTypeLabel = when {
-      activeAccount?.accountName?.contains("Ordinary", ignoreCase = true) == true -> "Platinum Black Card"
-      activeAccount?.accountName?.contains("Sesame", ignoreCase = true) == true -> "Youth Debit Card"
-      else -> "Visa Classic Debit Card"
+      activeAccount?.accountName?.contains("Allowance", ignoreCase = true) == true -> "Student Card"
+      else -> "Youth Card"
     }
 
     val displayCard = activeCard ?: BSBCard(
@@ -1807,193 +1918,229 @@ fun OverviewScreen(
         .height(180.dp)
     )
 
-    // 4. Compact Pocket Tracker progress bar (Minimal Text)
+    // 4. Interactive Live Student Allowance Allocator (Budget Planner)
+    val totalAllocated = foodAlloc + rentAlloc + transportAlloc + savingsAlloc
+    val remainingAllowance = 2200f - totalAllocated
+    val progressOfAllowance = (totalAllocated / 2200f).coerceIn(0f, 1f)
+
     Card(
       colors = CardDefaults.cardColors(containerColor = NavySurface),
-      shape = RoundedCornerShape(12.dp),
+      shape = RoundedCornerShape(14.dp),
+      border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
       modifier = Modifier.fillMaxWidth()
     ) {
-      Column(modifier = Modifier.padding(12.dp)) {
+      Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Preset Chips
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          listOf(
+            "Balanced Plan" to listOf(1000f, 700f, 250f, 250f),
+            "Frugal Saver" to listOf(800f, 600f, 200f, 600f),
+            "Saver Extra" to listOf(900f, 700f, 200f, 400f)
+          ).forEach { (presetName, values) ->
+            val isSelected = selectedPresetName == presetName
+            Box(
+              modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (isSelected) CoralOrange else NavyPrimary)
+                .clickable {
+                  selectedPresetName = presetName
+                  foodAlloc = values[0]
+                  rentAlloc = values[1]
+                  transportAlloc = values[2]
+                  savingsAlloc = values[3]
+                }
+                .padding(vertical = 6.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = presetName,
+                color = if (isSelected) NavyBackground else TextPrimary,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold
+              )
+            }
+          }
+        }
+
+        HorizontalDivider(color = NavyPrimary, thickness = 1.dp)
+
+        // Custom Allocations Sliders Customization
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+          // Category 1: Food
+          Column {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
+                Text("Food & Dining", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
+              Text("BWP ${foodAlloc.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            }
+            Slider(
+              value = foodAlloc,
+              onValueChange = { foodAlloc = it; selectedPresetName = "Custom" },
+              valueRange = 100f..1200f,
+              colors = SliderDefaults.colors(
+                thumbColor = CoralOrange,
+                activeTrackColor = CoralOrange,
+                inactiveTrackColor = NavyPrimary
+              ),
+              modifier = Modifier.height(24.dp)
+            )
+          }
+
+          // Category 2: Rent / Campus Residence
+          Column {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                Icon(Icons.Default.Home, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
+                Text("Residence Rent / Boarding", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
+              Text("BWP ${rentAlloc.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            }
+            Slider(
+              value = rentAlloc,
+              onValueChange = { rentAlloc = it; selectedPresetName = "Custom" },
+              valueRange = 100f..1000f,
+              colors = SliderDefaults.colors(
+                thumbColor = CoralOrange,
+                activeTrackColor = CoralOrange,
+                inactiveTrackColor = NavyPrimary
+              ),
+              modifier = Modifier.height(24.dp)
+            )
+          }
+
+          // Category 3: Kombi Transport
+          Column {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                Icon(CustomBusIcon, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
+                Text("Kombi & Taxi Transport", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
+              Text("BWP ${transportAlloc.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            }
+            Slider(
+              value = transportAlloc,
+              onValueChange = { transportAlloc = it; selectedPresetName = "Custom" },
+              valueRange = 50f..500f,
+              colors = SliderDefaults.colors(
+                thumbColor = CoralOrange,
+                activeTrackColor = CoralOrange,
+                inactiveTrackColor = NavyPrimary
+              ),
+              modifier = Modifier.height(24.dp)
+            )
+          }
+
+          // Category 4: savings
+          Column {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                Icon(CustomSavingsIcon, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
+                Text("Smart Emergency Savings", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+              }
+              Text("BWP ${savingsAlloc.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+            }
+            Slider(
+              value = savingsAlloc,
+              onValueChange = { savingsAlloc = it; selectedPresetName = "Custom" },
+              valueRange = 0f..800f,
+              colors = SliderDefaults.colors(
+                thumbColor = CoralOrange,
+                activeTrackColor = CoralOrange,
+                inactiveTrackColor = NavyPrimary
+              ),
+              modifier = Modifier.height(24.dp)
+            )
+          }
+        }
+
+        HorizontalDivider(color = NavyPrimary, thickness = 1.dp)
+
+        // Progress breakdown & status message
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = "Pocket Tracker spent this month",
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 13.sp
-          )
-          
-          Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Limit:", color = TextMuted, fontSize = 11.sp)
-            Spacer(modifier = Modifier.width(4.dp))
-            OutlinedTextField(
-              value = monthlyLimitText,
-              onValueChange = { monthlyLimitText = it },
-              singleLine = true,
-              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-              colors = TextFieldDefaults.colors(
-                focusedContainerColor = NavyBackground,
-                unfocusedContainerColor = NavyBackground,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary,
-                focusedIndicatorColor = CoralOrange,
-                unfocusedIndicatorColor = TextMuted
-              ),
-              modifier = Modifier
-                .width(72.dp)
-                .height(38.dp)
-                .testTag("expense_limit_input")
+          Column {
+            if (remainingAllowance >= 0) {
+              Text(
+                text = "Stipend remaining: BWP ${remainingAllowance.toInt()}",
+                color = if (remainingAllowance == 0f) Color.Green else Color.White,
+                fontWeight = FontWeight.Black,
+                fontSize = 12.sp
+              )
+            } else {
+              Text(
+                text = "⚠️ Deficit: BWP ${Math.abs(remainingAllowance).toInt()}",
+                color = CoralOrange,
+                fontWeight = FontWeight.Black,
+                fontSize = 12.sp
+              )
+            }
+          }
+
+          Box(
+            modifier = Modifier
+              .clip(RoundedCornerShape(6.dp))
+              .background(if (remainingAllowance >= 0) Color(0x2200FF00) else Color(0x22FF0000))
+              .padding(horizontal = 8.dp, vertical = 4.dp)
+          ) {
+            Text(
+              text = if (remainingAllowance >= 0) "BALANCED" else "OVERDRAFT",
+              color = if (remainingAllowance >= 0) Color.Green else CoralOrange,
+              fontWeight = FontWeight.Black,
+              fontSize = 10.sp
             )
           }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
         LinearProgressIndicator(
-          progress = { budgetProgress.toFloat() },
+          progress = { progressOfAllowance },
           modifier = Modifier
             .fillMaxWidth()
-            .height(8.dp)
+            .height(6.dp)
             .clip(CircleShape),
-          color = if (currentMonthTotal > budgetLimit) CoralOrange else GoldOrange,
+          color = if (remainingAllowance >= 0) GoldOrange else CoralOrange,
           trackColor = NavyPrimary
         )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-          Text(
-            text = "Total Spent: P ${String.format("%.0f", currentMonthTotal)}",
-            color = if (currentMonthTotal > budgetLimit) CoralOrange else TextPrimary,
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold
-          )
-          Text(
-            text = "Limit: P ${String.format("%.0f", budgetLimit)}",
-            color = TextMuted,
-            fontSize = 11.sp
-          )
-        }
       }
     }
 
-    // 5. Automatic Payments Slots (Filter for Selected Account Only!)
-    val filteredPayments = payments.filter { it.selectedAccountId == activeAccountId }
 
-    Row(
-      modifier = Modifier.fillMaxWidth(),
-      horizontalArrangement = Arrangement.SpaceBetween,
-      verticalAlignment = Alignment.CenterVertically
-    ) {
-      Text(
-        text = "Account's Auto-Payments (${filteredPayments.size})",
-        color = Color.White,
-        fontWeight = FontWeight.Bold,
-        fontSize = 14.sp
-      )
-    }
-
-    if (filteredPayments.isEmpty()) {
-      Box(
-        modifier = Modifier
-          .fillMaxWidth()
-          .height(80.dp)
-          .border(1.dp, NavyDistant, RoundedCornerShape(10.dp)),
-        contentAlignment = Alignment.Center
-      ) {
-        Text("No scheduled payments linked to this account.", color = TextMuted, fontSize = 11.sp)
-      }
-    } else {
-      val paymentRows = filteredPayments.chunked(2)
-      Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        paymentRows.forEach { rowItems ->
-          Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-          ) {
-            rowItems.forEach { payment ->
-              val serviceIcon = when (payment.paymentType) {
-                "Mobile Subscription" -> Icons.Default.Phone
-                "Wifi" -> Icons.Default.Refresh
-                "Water Bill" -> Icons.Default.Info
-                "Savings" -> Icons.Default.Star
-                else -> Icons.Default.List
-              }
-              
-              Card(
-                colors = CardDefaults.cardColors(
-                  containerColor = if (isDarkThemeGlobal) Color(0x3B1B2E4C) else Color(0xBBFFFFFF)
-                ),
-                border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color(0x1BFFFFFF) else Color(0x220F172A)),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.weight(1f)
-              ) {
-                Column(
-                  modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(10.dp),
-                  verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                  Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                  ) {
-                    Surface(
-                      shape = CircleShape,
-                      color = CoralOrange.copy(alpha = 0.12f),
-                      modifier = Modifier.size(28.dp)
-                    ) {
-                      Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                          imageVector = serviceIcon,
-                          contentDescription = payment.paymentType,
-                          tint = CoralOrange,
-                          modifier = Modifier.size(14.dp)
-                        )
-                      }
-                    }
-                    Text(
-                      text = "P ${String.format("%.0f", payment.amount)}",
-                      color = CoralOrange,
-                      fontWeight = FontWeight.Black,
-                      fontSize = 13.sp
-                    )
-                  }
-                  
-                  Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                      text = payment.payeeName,
-                      color = TextPrimary,
-                      fontWeight = FontWeight.Bold,
-                      fontSize = 12.sp,
-                      maxLines = 1,
-                      overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                      text = "Day ${payment.paymentDay} • ${payment.paymentType}",
-                      color = TextMuted,
-                      fontSize = 9.sp,
-                      maxLines = 1,
-                      overflow = TextOverflow.Ellipsis
-                    )
-                  }
-                }
-              }
-            }
-            if (rowItems.size == 1) {
-              Spacer(modifier = Modifier.weight(1f))
-            }
-          }
-        }
-      }
-    }
   }
 }
 
@@ -2020,18 +2167,18 @@ fun AutoPayScreen(
       verticalAlignment = Alignment.CenterVertically
     ) {
       Column {
-        Text("Scheduled Auto-Payments", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text("Scheduled Auto-Payments", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text("Authorized actions working with BSB accounts", color = TextMuted, fontSize = 12.sp)
       }
 
-      Button(
+      FilledIconButton(
         onClick = { showAddDialog = true },
-        colors = ButtonDefaults.buttonColors(containerColor = CoralOrange),
-        modifier = Modifier.testTag("add_autopay_button")
+        colors = IconButtonDefaults.filledIconButtonColors(containerColor = CoralOrange),
+        modifier = Modifier
+          .size(48.dp)
+          .testTag("add_autopay_button")
       ) {
-        Icon(Icons.Default.Add, contentDescription = "Add", tint = NavyBackground)
-        Spacer(modifier = Modifier.width(4.dp))
-        Text("Schedule", color = NavyBackground, fontWeight = FontWeight.Bold)
+        Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.White, modifier = Modifier.size(24.dp))
       }
     }
 
@@ -2080,6 +2227,7 @@ fun AutoPayScreen(
           Card(
             colors = CardDefaults.cardColors(containerColor = NavySurface),
             shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
             modifier = Modifier.fillMaxWidth()
           ) {
             Row(
@@ -2119,6 +2267,17 @@ fun AutoPayScreen(
                   fontSize = 11.sp,
                   fontWeight = FontWeight.Bold
                 )
+
+                if (!payment.recipientAccount.isNullOrBlank()) {
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                    text = "Recipient: ${payment.recipientName ?: payment.payeeName} (Acc: ${payment.recipientAccount})\nBranch: ${payment.recipientBranchNumber ?: "N/A"} - ${payment.recipientBranchName ?: "N/A"}",
+                    color = CoralOrange.copy(alpha = 0.9f),
+                    fontSize = 11.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.Bold
+                  )
+                }
 
                 Spacer(modifier = Modifier.height(6.dp))
 
@@ -2181,12 +2340,19 @@ fun AutoPayScreen(
     var calendarDayText by remember { mutableStateOf("15") }
     var selectedAccIndex by remember { mutableStateOf(-1) }
     var selectedCardIndex by remember { mutableStateOf(-1) }
+    var showDatePickerDialog by remember { mutableStateOf(false) }
+
+    // Recipient specific bank details
+    var recNameText by remember { mutableStateOf("") }
+    var recAccountText by remember { mutableStateOf("") }
+    var recBranchNumberText by remember { mutableStateOf("") }
+    var recBranchNameText by remember { mutableStateOf("") }
 
     var accountDropdownExpanded by remember { mutableStateOf(false) }
     var cardDropdownExpanded by remember { mutableStateOf(false) }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
-    val categories = listOf("Savings", "Wifi", "Mobile Subscription", "Water Bill", "Other")
+    val categories = listOf("Savings", "Wifi", "Mobile Subscription", "Rent", "Other")
 
     Dialog(onDismissRequest = { showAddDialog = false }) {
       Surface(
@@ -2204,7 +2370,7 @@ fun AutoPayScreen(
         ) {
           Text(
             text = "Create Auto-Pay Rule",
-            color = Color.White,
+            color = TextPrimary,
             fontWeight = FontWeight.Bold,
             fontSize = 18.sp
           )
@@ -2225,7 +2391,7 @@ fun AutoPayScreen(
                 Triple("Savings", "Savings Pot", Icons.Default.Star),
                 Triple("Wifi", "Broadband Wifi", Icons.Default.Refresh),
                 Triple("Mobile Subscription", "Mobile Data", Icons.Default.Phone),
-                Triple("Water Bill", "Water Utility", Icons.Default.Info),
+                Triple("Rent", "Rent Payment", Icons.Default.Home),
                 Triple("Other", "Other Outlay", Icons.Default.List)
               )
               
@@ -2242,15 +2408,22 @@ fun AutoPayScreen(
                     .background(cardColor)
                     .clickable {
                       feeType = catType
-                      // auto suggest name based on tapped category
-                      if (payeeText.isBlank() || payeeText.contains("Mascom") || payeeText.contains("BTC") || payeeText.contains("Water") || payeeText.contains("Emergency") || payeeText.contains("Store")) {
+                      // auto suggest name and bank details based on tapped category
+                      if (payeeText.isBlank() || payeeText.contains("Mascom") || payeeText.contains("BTC") || payeeText.contains("Rent") || payeeText.contains("Water") || payeeText.contains("Emergency") || payeeText.contains("Store")) {
                         payeeText = when (catType) {
                           "Savings" -> "BSB Golden Pot Savings"
                           "Wifi" -> "BTC Broadband Fibers"
                           "Mobile Subscription" -> "Mascom Mobile Data"
-                          "Water Bill" -> "Water Utilities Corp"
+                          "Rent" -> "Gaborone Village Landlord"
                           else -> "Choppies Supermarket"
                         }
+                      }
+                      
+                      if (catType == "Rent") {
+                        recNameText = "Gaborone Village Properties"
+                        recAccountText = "9080012456"
+                        recBranchNumberText = "120305"
+                        recBranchNameText = "BSB Main Gaborone"
                       }
                     }
                     .padding(vertical = 8.dp),
@@ -2318,25 +2491,237 @@ fun AutoPayScreen(
               .testTag("pay_amount_input")
           )
 
-          // Date selection field
-          OutlinedTextField(
-            value = calendarDayText,
-            onValueChange = { calendarDayText = it },
-            label = { Text("Day of Month (1 - 28)") },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            colors = TextFieldDefaults.colors(
-              focusedContainerColor = NavyPrimary,
-              unfocusedContainerColor = NavyPrimary,
-              focusedTextColor = TextPrimary,
-              unfocusedTextColor = TextPrimary,
-              focusedLabelColor = CoralOrange,
-              unfocusedLabelColor = TextMuted
-            ),
-            modifier = Modifier
-              .fillMaxWidth()
-              .testTag("pay_day_input")
-          )
+          // Date selection field - Click opens a custom Pop-up Calendar
+          Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Date of Payment", color = TextMuted, fontSize = 11.sp)
+            Box(
+              modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .clickable { showDatePickerDialog = true }
+            ) {
+              OutlinedTextField(
+                value = if (calendarDayText.isNotBlank()) "Day $calendarDayText of Month" else "Tap to choose a payment day",
+                onValueChange = {},
+                readOnly = true,
+                enabled = false, // ensures all clicks bubble up to the parent Box
+                label = null,
+                colors = TextFieldDefaults.colors(
+                  disabledContainerColor = NavyPrimary,
+                  disabledTextColor = TextPrimary,
+                  disabledLabelColor = CoralOrange,
+                  disabledIndicatorColor = Color.White.copy(alpha = 0.12f),
+                  disabledPlaceholderColor = TextMuted
+                ),
+                trailingIcon = {
+                  Icon(
+                    imageVector = Icons.Default.DateRange,
+                    contentDescription = "Select Date",
+                    tint = CoralOrange
+                  )
+                },
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .testTag("pay_day_input")
+              )
+            }
+          }
+
+          // Custom Calendar Popup Dialog/Overlay
+          if (showDatePickerDialog) {
+            Dialog(onDismissRequest = { showDatePickerDialog = false }) {
+              Surface(
+                color = NavySurface,
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, CoralOrange.copy(alpha = 0.5f)),
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .padding(16.dp)
+              ) {
+                Column(
+                  modifier = Modifier.padding(16.dp),
+                  verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                  Text(
+                    text = "Select Payment Day",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 16.sp
+                  )
+                  
+                  Text(
+                    text = "Choose a day (1 - 28) for this automated billing schedule.",
+                    color = TextMuted,
+                    fontSize = 11.sp
+                  )
+
+                  // 1 to 28 Days represented as a calendar grid
+                  val daysList = (1..28).toList()
+                  val columns = 7
+                  val rows = daysList.chunked(columns)
+
+                  // Day of week labels mimicking a real calendar grid starting Monday
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround
+                  ) {
+                    listOf("M", "T", "W", "T", "F", "S", "S").forEach { label ->
+                      Text(
+                        text = label,
+                        color = CoralOrange,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 10.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.width(32.dp)
+                      )
+                    }
+                  }
+
+                  Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    rows.forEach { rowDays ->
+                      Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceAround
+                      ) {
+                        rowDays.forEach { dayNum ->
+                          val isSelected = calendarDayText == dayNum.toString()
+                          Box(
+                            modifier = Modifier
+                              .size(34.dp)
+                              .clip(RoundedCornerShape(8.dp))
+                              .background(
+                                if (isSelected) CoralOrange else NavyPrimary.copy(alpha = 0.4f)
+                              )
+                              .border(
+                                width = 1.dp,
+                                color = if (isSelected) Color.Transparent else if (isDarkThemeGlobal) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f),
+                                shape = RoundedCornerShape(8.dp)
+                              )
+                              .clickable {
+                                calendarDayText = dayNum.toString()
+                                showDatePickerDialog = false
+                              },
+                            contentAlignment = Alignment.Center
+                          ) {
+                            Text(
+                              text = "$dayNum",
+                              color = if (isSelected) NavyBackground else TextPrimary,
+                              fontWeight = FontWeight.Black,
+                              fontSize = 11.sp
+                            )
+                          }
+                        }
+                      }
+                    }
+                  }
+
+                  Spacer(modifier = Modifier.height(6.dp))
+
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                  ) {
+                    TextButton(onClick = { showDatePickerDialog = false }) {
+                      Text("Cancel", color = CoralOrange, fontWeight = FontWeight.Black)
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          // RECIPIENT BANK DETAILS SECTION - ONLY FOR RENT
+          if (feeType == "Rent") {
+            Card(
+              colors = CardDefaults.cardColors(containerColor = NavyPrimary.copy(alpha = 0.5f)),
+              shape = RoundedCornerShape(12.dp),
+              border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.05f)),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Column(
+                modifier = Modifier.padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+              ) {
+                Text(
+                  text = "Recipient Bank Details (Rent Transfer Details)",
+                  color = CoralOrange,
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Black
+                )
+
+                OutlinedTextField(
+                  value = recNameText,
+                  onValueChange = { recNameText = it },
+                  label = { Text("Recipient Name") },
+                  singleLine = true,
+                  colors = TextFieldDefaults.colors(
+                    focusedContainerColor = NavySurface,
+                    unfocusedContainerColor = NavySurface,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedLabelColor = CoralOrange,
+                    unfocusedLabelColor = TextMuted
+                  ),
+                  modifier = Modifier.fillMaxWidth().testTag("rec_name_input")
+                )
+
+                OutlinedTextField(
+                  value = recAccountText,
+                  onValueChange = { recAccountText = it },
+                  label = { Text("Account Number") },
+                  singleLine = true,
+                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                  colors = TextFieldDefaults.colors(
+                    focusedContainerColor = NavySurface,
+                    unfocusedContainerColor = NavySurface,
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedLabelColor = CoralOrange,
+                    unfocusedLabelColor = TextMuted
+                  ),
+                  modifier = Modifier.fillMaxWidth().testTag("rec_account_input")
+                )
+
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                  OutlinedTextField(
+                    value = recBranchNumberText,
+                    onValueChange = { recBranchNumberText = it },
+                    label = { Text("Branch Code") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    colors = TextFieldDefaults.colors(
+                      focusedContainerColor = NavySurface,
+                      unfocusedContainerColor = NavySurface,
+                      focusedTextColor = TextPrimary,
+                      unfocusedTextColor = TextPrimary,
+                      focusedLabelColor = CoralOrange,
+                      unfocusedLabelColor = TextMuted
+                    ),
+                    modifier = Modifier.weight(1f).testTag("rec_branch_code_input")
+                  )
+
+                  OutlinedTextField(
+                    value = recBranchNameText,
+                    onValueChange = { recBranchNameText = it },
+                    label = { Text("Branch Name") },
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                      focusedContainerColor = NavySurface,
+                      unfocusedContainerColor = NavySurface,
+                      focusedTextColor = TextPrimary,
+                      unfocusedTextColor = TextPrimary,
+                      focusedLabelColor = CoralOrange,
+                      unfocusedLabelColor = TextMuted
+                    ),
+                    modifier = Modifier.weight(1.2f).testTag("rec_branch_name_input")
+                  )
+                }
+              }
+            }
+          }
 
           // Account selection drop down list
           Column {
@@ -2461,7 +2846,11 @@ fun AutoPayScreen(
                     amount = amount,
                     day = day,
                     accountId = accountId,
-                    cardId = cardId
+                    cardId = cardId,
+                    recipientNum = if (feeType == "Rent") recAccountText.ifBlank { null } else null,
+                    recipientBranchNo = if (feeType == "Rent") recBranchNumberText.ifBlank { null } else null,
+                    recipientBranchNm = if (feeType == "Rent") recBranchNameText.ifBlank { null } else null,
+                    recipientNm = if (feeType == "Rent") recNameText.ifBlank { null } else null
                   )
                   showAddDialog = false
                 } else {
@@ -2506,7 +2895,7 @@ fun AccountsScreen(
       verticalAlignment = Alignment.CenterVertically
     ) {
       Column {
-        Text("BSB Card & Wallet Vault", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text("BSB Card & Wallet Vault", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text("Link savings accounts & authorization keys", color = TextMuted, fontSize = 12.sp)
       }
     }
@@ -2546,7 +2935,7 @@ fun AccountsScreen(
     // BSB BANK ACCOUNTS SECTION
     Text(
       text = "Linked Botswana Savings Bank Accounts",
-      color = Color.White,
+      color = TextPrimary,
       fontWeight = FontWeight.Bold,
       fontSize = 14.sp
     )
@@ -2566,6 +2955,7 @@ fun AccountsScreen(
         Card(
           colors = CardDefaults.cardColors(containerColor = NavySurface),
           shape = RoundedCornerShape(12.dp),
+          border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
           modifier = Modifier.fillMaxWidth()
         ) {
           Row(
@@ -2593,7 +2983,7 @@ fun AccountsScreen(
     // CARDS LIST SECTION (Physical Card Display!)
     Text(
       text = "Registered Authorization Cards (${cards.size})",
-      color = Color.White,
+      color = TextPrimary,
       fontWeight = FontWeight.Bold,
       fontSize = 14.sp
     )
@@ -2647,7 +3037,7 @@ fun AccountsScreen(
           modifier = Modifier.padding(16.dp),
           verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-          Text("Connect BSB Account", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+          Text("Connect BSB Account", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
 
           OutlinedTextField(
             value = nameText,
@@ -2737,7 +3127,7 @@ fun AccountsScreen(
     var expiryText by remember { mutableStateOf("09/29") }
     var selectedAccIndex by remember { mutableStateOf(-1) }
     var dropdownExpanded by remember { mutableStateOf(false) }
-    var selectedCardType by remember { mutableStateOf("Visa Classic Debit Card") }
+    var selectedCardType by remember { mutableStateOf("Student Card") }
 
     Dialog(onDismissRequest = { showCardDialog = false }) {
       Surface(
@@ -2751,7 +3141,7 @@ fun AccountsScreen(
           modifier = Modifier.padding(16.dp),
           verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-          Text("Connect BSB Debit Card", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+          Text("Connect BSB Debit Card", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
 
           OutlinedTextField(
             value = holderText,
@@ -2815,7 +3205,7 @@ fun AccountsScreen(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-              val cardTiers = listOf("Visa Classic Debit Card", "Platinum Black Card", "Youth Debit Card")
+              val cardTiers = listOf("Student Card", "Youth Card")
               cardTiers.forEach { tier ->
                 val isSelected = selectedCardType == tier
                 val btnColor = if (isSelected) CoralOrange else NavyPrimary
@@ -2929,18 +3319,18 @@ fun ExpensesScreen(
       verticalAlignment = Alignment.CenterVertically
     ) {
       Column {
-        Text("Expense Log", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text("Expense Log", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text("Track monthly outlays comprehensively", color = TextMuted, fontSize = 12.sp)
       }
 
-      Button(
+      FilledIconButton(
         onClick = { showAddExpenseDialog = true },
-        colors = ButtonDefaults.buttonColors(containerColor = CoralOrange),
-        modifier = Modifier.testTag("add_manual_expense_btn")
+        colors = IconButtonDefaults.filledIconButtonColors(containerColor = CoralOrange),
+        modifier = Modifier
+          .size(48.dp)
+          .testTag("add_manual_expense_btn")
       ) {
-        Icon(Icons.Default.Add, contentDescription = "Add Expense", tint = NavyBackground)
-        Spacer(modifier = Modifier.width(4.dp))
-        Text("Add manual item", color = NavyBackground, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Icon(Icons.Default.Add, contentDescription = "Add Expense", tint = Color.White, modifier = Modifier.size(24.dp))
       }
     }
 
@@ -2965,6 +3355,7 @@ fun ExpensesScreen(
           Card(
             colors = CardDefaults.cardColors(containerColor = NavySurface),
             shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
             modifier = Modifier.fillMaxWidth()
           ) {
             Row(
@@ -3026,10 +3417,10 @@ fun ExpensesScreen(
   if (showAddExpenseDialog) {
     var titleText by remember { mutableStateOf("") }
     var amountText by remember { mutableStateOf("") }
-    var categoryText by remember { mutableStateOf("Other Outflow") }
+    var categoryText by remember { mutableStateOf("Food & Groceries") }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
-    val expenseCategories = listOf("Savings", "Wifi", "Mobile Subscription", "Other Outflow")
+    val expenseCategories = listOf("Food & Groceries", "Rent & Lodging", "Kombi & Taxi Transport", "Student Data/Wifi", "Smart Savings")
 
     Dialog(onDismissRequest = { showAddExpenseDialog = false }) {
       Surface(
@@ -3043,7 +3434,7 @@ fun ExpensesScreen(
           modifier = Modifier.padding(16.dp),
           verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-          Text("Add Spending Entry", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+          Text("Add Spending Entry", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
 
           OutlinedTextField(
             value = titleText,
@@ -3156,8 +3547,8 @@ fun NotificationsScreen(
       verticalAlignment = Alignment.CenterVertically
     ) {
       Column {
-        Text("Payment Receipt Logs", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text("Notifications on automatic execution", color = TextMuted, fontSize = 12.sp)
+        Text("Transaction History Logs", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text("Recent deposits, payments, and settlements", color = TextMuted, fontSize = 12.sp)
       }
 
       TextButton(
@@ -3261,7 +3652,7 @@ fun BSBThemedCard(
         Box(modifier = Modifier.fillMaxSize().background(NavySurface)) {
             // Theme-specific background draw block
             when (cardType) {
-                "Youth Debit Card" -> {
+                "Youth Debit Card", "Youth Card" -> {
                     // Deep navy background with diagonal/vertical vibrant traditional patterns
                     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF071221)))
                     
@@ -3444,14 +3835,18 @@ fun BSBThemedCard(
                     Column {
                         Text(
                             text = cardType.uppercase(),
-                            color = if (cardType == "Platinum Black Card") Color(0xFFE2E8F0) else Color.White,
+                            color = Color.White,
                             fontWeight = FontWeight.Black,
                             fontSize = 11.sp,
                             letterSpacing = 0.5.sp
                         )
                         Text(
-                            text = if (cardType == "Platinum Black Card") "Private Wealth Access" else "Companion Co-Savings",
-                            color = if (cardType == "Platinum Black Card") Color(0xFF94A3B8) else Color(0xFFFF8C00),
+                            text = when {
+                              cardType.contains("Youth", ignoreCase = true) -> "Youth Co-Savings"
+                              cardType.contains("Student", ignoreCase = true) -> "Student Co-Savings"
+                              else -> "Companion Co-Savings"
+                            },
+                            color = Color(0xFFFF8C00),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -3607,7 +4002,8 @@ fun ProfileScreen(
             // Profile Header Panel
             Card(
                 colors = CardDefaults.cardColors(containerColor = NavySurface),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f))
             ) {
                 Column(
                     modifier = Modifier
@@ -3718,7 +4114,8 @@ fun ProfileScreen(
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = NavySurface),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f))
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
@@ -3792,7 +4189,8 @@ fun ProfileScreen(
             // Visual Theme Selection Card
             Card(
                 colors = CardDefaults.cardColors(containerColor = NavySurface),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f))
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -3864,3 +4262,528 @@ fun ProfileScreen(
         }
     }
 }
+
+@Composable
+fun CalendarScreen(
+  viewModel: CompanionViewModel,
+  payments: List<ScheduledPayment>,
+  accounts: List<BSBAccount>,
+  simulatedDay: Int
+) {
+  val months = listOf(
+    "January", "February", "March", "April", "May", "June", 
+    "July", "August", "September", "October", "November", "December"
+  )
+  var selectedMonthIndex by remember { mutableStateOf(5) } // Default to June (Active simulation month)
+  var selectedCalendarDay by remember { mutableStateOf(simulatedDay) }
+  
+  LaunchedEffect(simulatedDay) {
+    selectedCalendarDay = simulatedDay
+  }
+
+  // Get days in the selected month for 2026
+  val daysInMonth = when (selectedMonthIndex) {
+    1 -> 28 // February
+    3, 5, 8, 10 -> 30 // April, June, September, November
+    else -> 31 // Jan, Mar, May, Jul, Aug, Oct, Dec
+  }
+
+  // Exact 2026 weekday starting index (0 = Mon, 1 = Tue, 2 = Wed, 3 = Thu, 4 = Fri, 5 = Sat, 6 = Sun)
+  val monthStartDayOfWeek = when (selectedMonthIndex) {
+    0 -> 3 // January starts on Thursday
+    1 -> 6 // February starts on Sunday
+    2 -> 6 // March starts on Sunday
+    3 -> 2 // April starts on Wednesday
+    4 -> 4 // May starts on Friday
+    5 -> 0 // June starts on Monday
+    6 -> 2 // July starts on Wednesday
+    7 -> 5 // August starts on Saturday
+    8 -> 1 // September starts on Tuesday
+    9 -> 3 // October starts on Thursday
+    10 -> 6 // November starts on Sunday
+    11 -> 1 // December starts on Tuesday
+    else -> 0
+  }
+
+  val scrollState = rememberScrollState()
+
+  Column(
+    modifier = Modifier
+      .fillMaxSize()
+      .padding(16.dp)
+      .verticalScroll(scrollState),
+    verticalArrangement = Arrangement.spacedBy(16.dp)
+  ) {
+    // 1. Current Simulation Status / Timeline Box
+    Card(
+      colors = CardDefaults.cardColors(containerColor = NavySurface),
+      shape = RoundedCornerShape(16.dp),
+      border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
+      modifier = Modifier.fillMaxWidth()
+    ) {
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+          // Large circular graphic badge for current day
+          Box(
+            modifier = Modifier
+              .size(64.dp)
+              .clip(CircleShape)
+              .background(
+                brush = Brush.verticalGradient(
+                  colors = listOf(CoralOrange, Color(0xFFD97706))
+                )
+              ),
+            contentAlignment = Alignment.Center
+          ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Text(
+                text = "DAY",
+                color = NavyBackground,
+                fontWeight = FontWeight.Black,
+                fontSize = 10.sp,
+                letterSpacing = 1.sp
+              )
+              Text(
+                text = "$simulatedDay",
+                color = NavyBackground,
+                fontWeight = FontWeight.Black,
+                fontSize = 26.sp,
+                lineHeight = 28.sp
+              )
+            }
+          }
+
+          Column {
+            Text(
+              text = "Bank Cycle Timeline",
+              color = TextPrimary,
+              fontWeight = FontWeight.ExtraBold,
+              fontSize = 16.sp
+            )
+            Text(
+              text = "Active month: ${months[5]} 2026",
+              color = TextMuted,
+              fontSize = 11.sp
+            )
+          }
+        }
+
+        // Highly graphic Advance Day Button
+        Button(
+          onClick = { viewModel.advanceSimulatedDay() },
+          colors = ButtonDefaults.buttonColors(containerColor = CoralOrange),
+          shape = RoundedCornerShape(12.dp),
+          contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+          modifier = Modifier.height(44.dp)
+        ) {
+          Icon(
+            imageVector = Icons.Default.PlayArrow,
+            contentDescription = "Advance Day",
+            tint = NavyBackground,
+            modifier = Modifier.size(18.dp)
+          )
+          Spacer(modifier = Modifier.width(6.dp))
+          Text(
+            text = "Next Day",
+            color = NavyBackground,
+            fontWeight = FontWeight.Black,
+            fontSize = 12.sp
+          )
+        }
+      }
+    }
+
+    // 2. Expanded Multi-Month Calendar Core Card
+    Card(
+      colors = CardDefaults.cardColors(containerColor = NavySurface),
+      shape = RoundedCornerShape(16.dp),
+      border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
+      modifier = Modifier.fillMaxWidth()
+    ) {
+      Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+      ) {
+        // A. Header Month Navigator with Left/Right Arrows
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          IconButton(
+            onClick = {
+              selectedMonthIndex = if (selectedMonthIndex == 0) 11 else selectedMonthIndex - 1
+              if (selectedCalendarDay > 28) selectedCalendarDay = 28
+            }
+          ) {
+            Icon(
+              imageVector = Icons.Default.ArrowBack,
+              contentDescription = "Previous Month",
+              tint = CoralOrange
+            )
+          }
+
+          Text(
+            text = "${months[selectedMonthIndex]} 2026",
+            color = TextPrimary,
+            fontWeight = FontWeight.Black,
+            fontSize = 18.sp
+          )
+
+          IconButton(
+            onClick = {
+              selectedMonthIndex = if (selectedMonthIndex == 11) 0 else selectedMonthIndex + 1
+              if (selectedCalendarDay > 28) selectedCalendarDay = 28
+            }
+          ) {
+            Icon(
+              imageVector = Icons.Default.ArrowForward,
+              contentDescription = "Next Month",
+              tint = CoralOrange
+            )
+          }
+        }
+
+        // B. Quick Month Horizontal Selection Pills
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          months.forEachIndexed { idx, mName ->
+            val isCurrentSel = idx == selectedMonthIndex
+            Surface(
+              onClick = { 
+                selectedMonthIndex = idx 
+                if (selectedCalendarDay > 28) selectedCalendarDay = 28
+              },
+              color = if (isCurrentSel) CoralOrange else NavyPrimary,
+              shape = RoundedCornerShape(20.dp),
+              modifier = Modifier.height(32.dp)
+            ) {
+              Box(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+              ) {
+                Text(
+                  text = mName.take(3),
+                  color = if (isCurrentSel) NavyBackground else TextPrimary,
+                  fontWeight = FontWeight.Black,
+                  fontSize = 11.sp
+                )
+              }
+            }
+          }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // C. Mon - Sun Column Headers
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceAround
+        ) {
+          listOf("M", "T", "W", "T", "F", "S", "S").forEach { dayLetter ->
+            Box(
+              modifier = Modifier.size(32.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Text(
+                text = dayLetter,
+                color = CoralOrange,
+                fontWeight = FontWeight.Black,
+                fontSize = 12.sp
+              )
+            }
+          }
+        }
+
+        // D. Flexible Month Cells generator with accurate offset
+        val totalDays = daysInMonth
+        val startOffset = monthStartDayOfWeek
+        val totalCells = totalDays + startOffset
+        val dayCols = 7
+        val dayRows = (totalCells + dayCols - 1) / dayCols
+        
+        for (r in 0 until dayRows) {
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceAround
+          ) {
+            for (c in 0 until dayCols) {
+              val cellIndex = r * 7 + c
+              val cellDay = cellIndex - startOffset + 1
+              if (cellIndex >= startOffset && cellDay <= totalDays) {
+                val isToday = (selectedMonthIndex == 5) && (cellDay == simulatedDay)
+                val isSelected = cellDay == selectedCalendarDay
+                val hasPayment = payments.any { it.paymentDay == cellDay && it.isActive }
+
+                Box(
+                  modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(
+                      when {
+                        isToday -> CoralOrange
+                        isSelected -> CoralOrange.copy(alpha = 0.25f)
+                        else -> NavyPrimary.copy(alpha = 0.4f)
+                      }
+                    )
+                    .border(
+                      width = when {
+                        isToday -> 0.dp
+                        isSelected -> 2.dp
+                        else -> 1.dp
+                      },
+                      color = when {
+                        isToday -> Color.Transparent
+                        isSelected -> CoralOrange
+                        else -> if (isDarkThemeGlobal) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+                      },
+                      shape = RoundedCornerShape(8.dp)
+                    )
+                    .clickable { selectedCalendarDay = cellDay },
+                  contentAlignment = Alignment.Center
+                ) {
+                  Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                  ) {
+                    Text(
+                      text = "$cellDay",
+                      color = when {
+                        isToday -> NavyBackground
+                        isSelected -> CoralOrange
+                        else -> TextPrimary
+                      },
+                      fontWeight = if (isToday || isSelected) FontWeight.Black else FontWeight.Bold,
+                      fontSize = 12.sp
+                    )
+
+                    // Little dynamic payment action indicator dots
+                    if (hasPayment) {
+                      Box(
+                        modifier = Modifier
+                          .padding(top = 1.dp)
+                          .size(4.dp)
+                          .clip(CircleShape)
+                          .background(if (isToday) NavyBackground else GoldOrange)
+                      )
+                    }
+                  }
+                }
+              } else {
+                // Pad with empty cell block
+                Box(modifier = Modifier.size(38.dp))
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // 3. Detailed payment info for selected day
+    val paymentsOnDay = payments.filter { it.paymentDay == selectedCalendarDay }
+
+    Card(
+      colors = CardDefaults.cardColors(containerColor = NavySurface),
+      shape = RoundedCornerShape(16.dp),
+      border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
+      modifier = Modifier.fillMaxWidth()
+    ) {
+      Column(
+        modifier = Modifier.padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+      ) {
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Text(
+            text = "DUE DETAILS FOR DAY $selectedCalendarDay (${months[selectedMonthIndex].uppercase()})",
+            color = CoralOrange,
+            fontWeight = FontWeight.Black,
+            fontSize = 11.sp,
+            letterSpacing = 0.5.sp
+          )
+          
+          if (selectedMonthIndex == 5 && selectedCalendarDay == simulatedDay) {
+            Box(
+              modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(CoralOrange.copy(alpha = 0.15f))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+              Text(
+                text = "TODAY",
+                color = CoralOrange,
+                fontWeight = FontWeight.Black,
+                fontSize = 9.sp
+              )
+            }
+          }
+        }
+
+        if (paymentsOnDay.isEmpty()) {
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+          ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = "No dues",
+                tint = Color.Green.copy(alpha = 0.5f),
+                modifier = Modifier.size(36.dp)
+              )
+              Spacer(modifier = Modifier.height(6.dp))
+              Text(
+                text = "No payments scheduled for this calendar index!",
+                color = TextMuted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+              )
+            }
+          }
+        } else {
+          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            paymentsOnDay.forEach { payment ->
+              val payAccount = accounts.find { it.id == payment.selectedAccountId }
+              
+              Column(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .clip(RoundedCornerShape(10.dp))
+                  .background(NavyPrimary.copy(alpha = 0.4f))
+                  .border(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f), RoundedCornerShape(10.dp))
+                  .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                  ) {
+                    // Category Bullet
+                    Box(
+                      modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(CoralOrange.copy(alpha = 0.15f)),
+                      contentAlignment = Alignment.Center
+                    ) {
+                      val icon = when {
+                        payment.paymentType.contains("Wifi", ignoreCase = true) -> Icons.Default.Refresh
+                        payment.paymentType.contains("Mobile", ignoreCase = true) || payment.paymentType.contains("Data", ignoreCase = true) -> Icons.Default.PlayArrow
+                        payment.paymentType.contains("Rent", ignoreCase = true) -> Icons.Default.Home
+                        else -> Icons.Default.Star
+                      }
+                      Icon(
+                        imageVector = icon,
+                        contentDescription = payment.paymentType,
+                        tint = CoralOrange,
+                        modifier = Modifier.size(16.dp)
+                      )
+                    }
+
+                    Column {
+                      Text(
+                        text = payment.payeeName,
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                      )
+                      Text(
+                        text = "${payment.paymentType} • From ${payAccount?.accountName ?: "Wallet"}",
+                        color = TextMuted,
+                        fontSize = 10.sp
+                      )
+                    }
+                  }
+
+                  Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                      text = "BWP ${String.format("%.2f", payment.amount)}",
+                      color = GoldOrange,
+                      fontWeight = FontWeight.Black,
+                      fontSize = 12.sp
+                    )
+                    Box(
+                      modifier = Modifier
+                        .padding(top = 2.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (payment.isActive) Color(0x1110B981) else Color(0x22EF4444))
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                      Text(
+                        text = if (payment.isActive) "Auto-Active" else "Deactivated",
+                        color = if (payment.isActive) Color.Green else Color.Red,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 8.sp
+                      )
+                    }
+                  }
+                }
+
+                // Render expanded custom recipient bank accounts details in the calendar dues card if configured
+                if (!payment.recipientAccount.isNullOrBlank()) {
+                  Box(
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .clip(RoundedCornerShape(6.dp))
+                      .background(NavyBackground.copy(alpha = 0.5f))
+                      .padding(8.dp)
+                  ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                      Text(
+                        text = "RECIPIENT BANK SETTLEMENT",
+                        color = CoralOrange,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Black
+                      )
+                      Text(
+                        text = "Name: ${payment.recipientName ?: payment.payeeName}",
+                        color = TextPrimary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                      )
+                      Text(
+                        text = "Account: ${payment.recipientAccount}",
+                        color = TextPrimary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Normal
+                      )
+                      Text(
+                        text = "Bank Branch: ${payment.recipientBranchNumber ?: "N/A"} - ${payment.recipientBranchName ?: "N/A"}",
+                        color = TextMuted,
+                        fontSize = 10.sp
+                      )
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -23,6 +23,19 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val notifications: StateFlow<List<AppNotification>> = repository.notifications
+        .map { list ->
+            list.filter { notif ->
+                val lowerTitle = notif.title.lowercase()
+                val lowerMsg = notif.message.lowercase()
+                
+                val isPayment = lowerTitle.contains("payment") || lowerTitle.contains("paid") || lowerTitle.contains("bill") || lowerTitle.contains("rule") || lowerTitle.contains("cancelled") || lowerMsg.contains("payment") || lowerMsg.contains("paid") || lowerMsg.contains("bill")
+                val isDeposit = lowerTitle.contains("deposit") || lowerTitle.contains("allowance") || lowerTitle.contains("received") || lowerTitle.contains("added") || lowerMsg.contains("deposit") || lowerMsg.contains("allowance") || lowerMsg.contains("received") || lowerMsg.contains("credit")
+                val isWithdrawal = lowerTitle.contains("withdraw") || lowerTitle.contains("deducted") || lowerTitle.contains("outflow") || lowerMsg.contains("withdraw") || lowerMsg.contains("deducted") || lowerMsg.contains("outflow")
+                val isTransaction = lowerTitle.contains("purchase") || lowerTitle.contains("declined") || lowerTitle.contains("approved") || lowerTitle.contains("blocked") || lowerTitle.contains("expense") || lowerTitle.contains("transaction") || lowerMsg.contains("purchase") || lowerMsg.contains("declined") || lowerMsg.contains("approved") || lowerMsg.contains("blocked") || lowerMsg.contains("expense") || lowerMsg.contains("transaction")
+
+                isPayment || isDeposit || isWithdrawal || isTransaction
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Simulated Calendar Day (1 - 28)
@@ -65,7 +78,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     cardCvvOrPin = "123",
                     passwordHash = "1234",
                     biometricsEnabled = true,
-                    dailyCardLimit = 5000.0,
+                    dailyCardLimit = 2000.0,
                     smsAlertsEnabled = true,
                     isCardFrozen = false,
                     contactlessEnabled = true,
@@ -106,10 +119,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                 )
                 repository.registerUser(updated)
                 _loggedInUser.value = updated
-                repository.addNotification(
-                    title = "Profile Preferences Updated",
-                    message = "Your security limits, bio-login, and card frozen preference has been synchronized."
-                )
             }
             onComplete()
         }
@@ -188,14 +197,10 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     cardNumberMasked = maskedNo,
                     cardExpiry = cardExpiry,
                     linkedAccountId = accId,
-                    cardType = "Visa Classic Debit Card"
+                    cardType = "Student Card"
                 )
             )
 
-            repository.addNotification(
-                title = "Welcome, " + fullName.split(" ").firstOrNull() + "!",
-                message = "Your profile is registered with cellphone: +267 $cellphone and card: $maskedNo linked."
-            )
             onResult(true, "Registration successful! Welcome to Botswana Savings Bank companion.")
         }
     }
@@ -208,10 +213,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             } else if (user.passwordHash == passwordHash) {
                 _loggedInUser.value = user
                 _isLoggedIn.value = true
-                repository.addNotification(
-                    title = "Dashboard Access Granted",
-                    message = "Successfully logged in with profile: ${user.fullName}."
-                )
                 onResult(true, "Authentication successful!")
             } else {
                 onResult(false, "Incorrect password. Please try again.")
@@ -229,10 +230,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             } else {
                 _loggedInUser.value = user
                 _isLoggedIn.value = true
-                repository.addNotification(
-                    title = "Logged in (Biometrics)",
-                    message = "Granted access to BSB dashboard via secure biological profile match."
-                )
                 onResult(true, "Authentication successful!")
             }
         }
@@ -241,10 +238,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     fun logOut() {
         viewModelScope.launch {
             _isLoggedIn.value = false
-            repository.addNotification(
-                title = "Session Terminated",
-                message = "Securely logged out from active BSB interface."
-            )
         }
     }
 
@@ -253,10 +246,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             repository.clearUser()
             _loggedInUser.value = null
             _isLoggedIn.value = false
-            repository.addNotification(
-                title = "Data Reset",
-                message = "Cleared all local registered profiles from memory."
-            )
         }
     }
 
@@ -268,10 +257,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     accountNumber = number,
                     balance = balance
                 )
-            )
-            repository.addNotification(
-                title = "BSB Account Linked",
-                message = "Successfully linked account: $name ($number)."
             )
         }
     }
@@ -287,15 +272,21 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     cardType = cardType
                 )
             )
-            val account = repository.getAccountById(accountId)
-            repository.addNotification(
-                title = "BSB Card Linked",
-                message = "Linked card ending in ${numberMasked.takeLast(4)} to account: ${account?.accountName ?: "Unknown"}."
-            )
         }
     }
 
-    fun addPayment(type: String, payee: String, amount: Double, day: Int, accountId: Int, cardId: Int?) {
+    fun addPayment(
+        type: String,
+        payee: String,
+        amount: Double,
+        day: Int,
+        accountId: Int,
+        cardId: Int?,
+        recipientNum: String? = null,
+        recipientBranchNo: String? = null,
+        recipientBranchNm: String? = null,
+        recipientNm: String? = null
+    ) {
         viewModelScope.launch {
             repository.addPayment(
                 ScheduledPayment(
@@ -305,7 +296,11 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     paymentDay = day,
                     selectedAccountId = accountId,
                     selectedCardId = cardId,
-                    isActive = true
+                    isActive = true,
+                    recipientAccount = recipientNum,
+                    recipientBranchNumber = recipientBranchNo,
+                    recipientBranchName = recipientBranchNm,
+                    recipientName = recipientNm
                 )
             )
             repository.addNotification(
@@ -351,17 +346,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         viewModelScope.launch {
             val nextVal = !_freeDataMode.value
             _freeDataMode.value = nextVal
-            if (nextVal) {
-                repository.addNotification(
-                    title = "Monetized Free Data Active",
-                    message = "Switched to sponsored Net-Zero mode. Data charges waived under local provider sponsorships."
-                )
-            } else {
-                repository.addNotification(
-                    title = "Standard Cellular Network",
-                    message = "Switched back to standard data consumption state."
-                )
-            }
         }
     }
 
@@ -494,6 +478,22 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                 title = "Purchase Blocked by Owner",
                 message = "A simulated checkout request of BWP ${String.format("%.2f", purchase.amount)} at ${purchase.merchantName} was rejected/declined."
             )
+        }
+    }
+
+    fun depositStudentAllowance() {
+        viewModelScope.launch {
+            val dbAccounts = repository.accounts.first()
+            val allowanceAcc = dbAccounts.find { it.accountName.contains("Allowance", ignoreCase = true) } ?: dbAccounts.firstOrNull()
+            if (allowanceAcc != null) {
+                val updated = allowanceAcc.copy(balance = allowanceAcc.balance + 2200.00)
+                repository.updateAccount(updated)
+                repository.addNotification(
+                    title = "BSB Allowance Direct Deposit",
+                    message = "Your monthly tertiary student allowance of BWP 2,200.00 has been successfully deposited into account ${allowanceAcc.accountNumber} by Botswana Savings Bank."
+                )
+                _paymentExecutionEvent.emit("Allowance of BWP 2,200.00 Deposited!")
+            }
         }
     }
 }

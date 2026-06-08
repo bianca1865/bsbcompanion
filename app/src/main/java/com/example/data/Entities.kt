@@ -29,7 +29,7 @@ data class BSBCard(
     val cardNumberMasked: String,
     val cardExpiry: String,
     val linkedAccountId: Int,
-    val cardType: String = "Visa Classic Debit Card"
+    val cardType: String = "Student Card"
 )
 
 @Entity(tableName = "scheduled_payments")
@@ -42,7 +42,11 @@ data class ScheduledPayment(
     val lastPaymentDate: Long? = null, // timestamp
     val selectedAccountId: Int, // Paid from this BSB account
     val selectedCardId: Int? = null, // Optionally linked card
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val recipientAccount: String? = null,
+    val recipientBranchNumber: String? = null,
+    val recipientBranchName: String? = null,
+    val recipientName: String? = null
 )
 
 @Entity(tableName = "expense_items")
