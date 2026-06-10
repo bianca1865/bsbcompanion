@@ -105,6 +105,8 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         rentMaxLimit: Double = 3000.0,
         transportMaxLimit: Double = 1000.0,
         savingsMaxLimit: Double = 2000.0,
+        wifiMaxLimit: Double = 1000.0,
+        mobileMaxLimit: Double = 1000.0,
         onComplete: () -> Unit
     ) {
         viewModelScope.launch {
@@ -123,12 +125,78 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     foodMaxLimit = foodMaxLimit,
                     rentMaxLimit = rentMaxLimit,
                     transportMaxLimit = transportMaxLimit,
-                    savingsMaxLimit = savingsMaxLimit
+                    savingsMaxLimit = savingsMaxLimit,
+                    wifiMaxLimit = wifiMaxLimit,
+                    mobileMaxLimit = mobileMaxLimit
                 )
                 repository.registerUser(updated)
                 _loggedInUser.value = updated
             }
             onComplete()
+        }
+    }
+
+    fun updateAllocations(
+        food: Double? = null,
+        rent: Double? = null,
+        transport: Double? = null,
+        savings: Double? = null,
+        wifi: Double? = null,
+        mobile: Double? = null,
+        total: Double? = null
+    ) {
+        viewModelScope.launch {
+            val current = _loggedInUser.value ?: return@launch
+            val updated = current.copy(
+                foodAlloc = food ?: current.foodAlloc,
+                rentAlloc = rent ?: current.rentAlloc,
+                transportAlloc = transport ?: current.transportAlloc,
+                savingsAlloc = savings ?: current.savingsAlloc,
+                wifiAlloc = wifi ?: current.wifiAlloc,
+                mobileAlloc = mobile ?: current.mobileAlloc,
+                totalAllowanceLimit = total ?: current.totalAllowanceLimit
+            )
+            repository.registerUser(updated)
+            _loggedInUser.value = updated
+
+            // SYNC: If Rent in allocator changes, update the Rent Auto-Pay if it exists
+            if (rent != null) {
+                val rentPayment = payments.value.find { it.paymentType == "Rent" }
+                if (rentPayment != null && rentPayment.amount != rent) {
+                    repository.updatePayment(rentPayment.copy(amount = rent))
+                }
+            }
+            
+            // SYNC: If Wifi in allocator changes, update the Wifi Auto-Pay if it exists
+            if (wifi != null) {
+                val wifiPayment = payments.value.find { it.paymentType == "Wifi" }
+                if (wifiPayment != null && wifiPayment.amount != wifi) {
+                    repository.updatePayment(wifiPayment.copy(amount = wifi))
+                }
+            }
+            
+            // SYNC: If Mobile in allocator changes, update the Mobile Subscription Auto-Pay if it exists
+            if (mobile != null) {
+                val mobilePayment = payments.value.find { it.paymentType == "Mobile Subscription" }
+                if (mobilePayment != null && mobilePayment.amount != mobile) {
+                    repository.updatePayment(mobilePayment.copy(amount = mobile))
+                }
+            }
+        }
+    }
+
+    fun toggleCategoryVisibility(category: String) {
+        viewModelScope.launch {
+            val current = _loggedInUser.value ?: return@launch
+            val categories = current.visibleCategories.split(",").map { it.trim() }.toMutableList()
+            if (categories.contains(category)) {
+                categories.remove(category)
+            } else {
+                categories.add(category)
+            }
+            val updated = current.copy(visibleCategories = categories.filter { it.isNotBlank() }.joinToString(","))
+            repository.registerUser(updated)
+            _loggedInUser.value = updated
         }
     }
 
@@ -311,6 +379,19 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     recipientName = recipientNm
                 )
             )
+
+            // SYNC: Update Allocator if adding certain Auto-Pays
+            val current = _loggedInUser.value ?: return@launch
+            val updated = when (type) {
+                "Rent" -> current.copy(rentAlloc = amount)
+                "Wifi" -> current.copy(wifiAlloc = amount)
+                "Mobile Subscription" -> current.copy(mobileAlloc = amount)
+                else -> current
+            }
+            if (updated != current) {
+                repository.registerUser(updated)
+                _loggedInUser.value = updated
+            }
         }
     }
 

@@ -1,0 +1,47 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="512dp"
+    android:height="512dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+
+    <!-- Background of the icon is handled by the launcher system,
+         this vector represents only the foreground elements -->
+
+    <!-- Graduation Cap -->
+    <path
+        android:fillColor="#0B1B35"
+        android:pathData="M256,40 L40,160 L256,280 L472,160 Z" />
+    <path
+        android:fillColor="#0B1B35"
+        android:pathData="M120,200 V280 C120,280 180,340 256,340 C332,340 392,280 392,280 V200 L256,300 Z" />
+    <!-- Tassel -->
+    <path
+        android:fillColor="#FF8C00"
+        android:pathData="M472,160 V320 Q472,360 440,360 Q408,360 408,320 L472,160 Z" />
+
+    <!-- Wallet Body (Lower half) -->
+    <path
+        android:fillColor="#0B1B35"
+        android:pathData="M80,300 Q60,300 60,320 V460 Q60,480 80,480 H432 Q452,480 452,460 V340 Q452,320 432,320 H220 L180,300 Z" />
+
+    <!-- Credit Card tucked in -->
+    <path
+        android:fillColor="#FF8C00"
+        android:pathData="M200,280 H412 Q432,280 432,300 V360 H200 Z" />
+    <path
+        android:fillColor="#0B1B35"
+        android:pathData="M240,300 H300 V320 H240 Z" />
+
+    <!-- Pie Chart on Wallet -->
+    <group android:translateX="256" android:translateY="400">
+        <!-- Pie Circle -->
+        <path
+            android:fillColor="#071221"
+            android:pathData="M0,0 m-50,0 a50,50 0 1,1 100,0 a50,50 0 1,1 -100,0" />
+        <!-- Orange Slice -->
+        <path
+            android:fillColor="#FF8C00"
+            android:pathData="M0,0 L50,0 A50,50 0 0,0 0,-50 Z" />
+    </group>
+
+</vector>
