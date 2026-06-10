@@ -196,7 +196,7 @@ class Repository(private val db: AppDatabase) {
 
             expenseDao.insertExpense(
                 ExpenseItem(
-                    title = "Kombi Ride to Campus",
+                    title = "Combi Ride to Campus",
                     amount = 14.50,
                     category = "Transport",
                     timestamp = System.currentTimeMillis() - 86400000_3L // 3 days ago
@@ -207,7 +207,7 @@ class Repository(private val db: AppDatabase) {
                 ExpenseItem(
                     title = "Campus Cafeteria Combo",
                     amount = 45.00,
-                    category = "Food",
+                    category = "Groceries",
                     timestamp = System.currentTimeMillis() - 86400000_4L
                 )
             )

@@ -311,20 +311,12 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     recipientName = recipientNm
                 )
             )
-            repository.addNotification(
-                title = "Payment Auto-Rule Configured",
-                message = "Configured P${String.format("%.2f", amount)} rules for $payee on day $day."
-            )
         }
     }
 
     fun deletePayment(payment: ScheduledPayment) {
         viewModelScope.launch {
             repository.deletePayment(payment)
-            repository.addNotification(
-                title = "Scheduled Rule Cancelled",
-                message = "The scheduled payment rules for ${payment.payeeName} have been deleted."
-            )
         }
     }
 
@@ -336,10 +328,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     amount = amount,
                     category = category
                 )
-            )
-            repository.addNotification(
-                title = "Expense Tracked Manually",
-                message = "Added tracking item: $title (P${String.format("%.2f", amount)}) to category: $category."
             )
         }
     }
@@ -366,10 +354,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             if (nextDay > 31) {
                 nextDay = 1
                 repository.clearAllExpenses()
-                repository.addNotification(
-                    title = "New Monthly Cycle Started",
-                    message = "Simulated bank cycle calendar wrapped to Day 1. Your monthly outlays expense log has been renewed!"
-                )
             }
             _simulatedDay.value = nextDay
 
@@ -384,10 +368,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     fun clearAllExpenses() {
         viewModelScope.launch {
             repository.clearAllExpenses()
-            repository.addNotification(
-                title = "Expense Log Renewed",
-                message = "The monthly expense log has been successfully renewed of all past elements."
-            )
         }
     }
 

@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -95,15 +98,30 @@ val CustomWalletIcon: ImageVector by lazy {
     viewportHeight = 24f
   ).apply {
     path(fill = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.White)) {
-      moveTo(21f, 18f)
-      verticalLineTo(6f)
-      curveTo(21f, 4.9f, 20.1f, 4f, 19f, 4f)
+      moveTo(19f, 5f)
       horizontalLineTo(5f)
-      curveTo(3.9f, 4f, 3f, 4.9f, 3f, 6f)
-      verticalLineTo(18f)
-      curveTo(3f, 19.1f, 3.9f, 20f, 5f, 20f)
+      curveTo(3.9f, 5f, 3f, 5.9f, 3f, 7f)
+      verticalLineTo(17f)
+      curveTo(3f, 18.1f, 3.9f, 19f, 5f, 19f)
       horizontalLineTo(19f)
-      curveTo(20.1f, 20f, 21f, 19.1f, 21f, 18f)
+      curveTo(20.1f, 19f, 21f, 18.1f, 21f, 17f)
+      verticalLineTo(14f)
+      horizontalLineTo(16f)
+      curveTo(14.9f, 14f, 14f, 13.1f, 14f, 12f)
+      curveTo(14f, 10.9f, 14.9f, 10f, 16f, 10f)
+      horizontalLineTo(21f)
+      verticalLineTo(7f)
+      curveTo(21f, 5.9f, 20.1f, 5f, 19f, 5f)
+      close()
+    }
+    path(fill = androidx.compose.ui.graphics.SolidColor(androidx.compose.ui.graphics.Color.White)) {
+      moveTo(18f, 12f)
+      curveTo(18f, 12.55f, 17.55f, 13f, 17f, 13f)
+      horizontalLineTo(15.5f)
+      curveTo(14.95f, 13f, 14.5f, 12.55f, 14.5f, 12f)
+      curveTo(14.5f, 11.45f, 14.95f, 11f, 15.5f, 11f)
+      horizontalLineTo(17f)
+      curveTo(17.55f, 11f, 18f, 11.45f, 18f, 12f)
       close()
     }
   }.build()
@@ -818,13 +836,12 @@ fun CompanionHeader(
       verticalAlignment = Alignment.CenterVertically
     ) {
       Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-          modifier = Modifier
-            .size(6.dp, 24.dp)
-            .clip(RoundedCornerShape(2.dp))
-            .background(CoralOrange)
+        Image(
+          painter = painterResource(id = R.drawable.bsb_companion_icon_1780844988616),
+          contentDescription = "BSB Companion Logo",
+          modifier = Modifier.size(34.dp).clip(RoundedCornerShape(6.dp))
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Column {
           Text(
             text = "BSB COMPANION",
@@ -845,7 +862,7 @@ fun CompanionHeader(
 
       Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
       ) {
         // Notification Badge Bell
         IconButton(
@@ -968,13 +985,12 @@ fun AuthScreen(
           verticalAlignment = Alignment.CenterVertically
         ) {
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-              modifier = Modifier
-                .size(6.dp, 28.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(CoralOrange)
+            Image(
+              painter = painterResource(id = R.drawable.bsb_companion_icon_1780844988616),
+              contentDescription = "BSB Companion Logo",
+              modifier = Modifier.size(46.dp).clip(RoundedCornerShape(8.dp))
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column {
               Text(
                 text = "BOTSWANA SAVINGS BANK",
@@ -1775,6 +1791,14 @@ fun OverviewScreen(
   var rentAlloc by remember { mutableStateOf(700f) }
   var transportAlloc by remember { mutableStateOf(250f) }
   var savingsAlloc by remember { mutableStateOf(250f) }
+  var totalAllowanceLimit by remember { mutableStateOf(2200f) }
+  var isTotalPlannedLocked by remember { mutableStateOf(false) }
+
+  var foodAllocInput by remember(foodAlloc) { mutableStateOf(foodAlloc.toInt().toString()) }
+  var rentAllocInput by remember(rentAlloc) { mutableStateOf(rentAlloc.toInt().toString()) }
+  var transportAllocInput by remember(transportAlloc) { mutableStateOf(transportAlloc.toInt().toString()) }
+  var savingsAllocInput by remember(savingsAlloc) { mutableStateOf(savingsAlloc.toInt().toString()) }
+  var totalAllowanceInput by remember(totalAllowanceLimit) { mutableStateOf(totalAllowanceLimit.toInt().toString()) }
 
   Column(
     modifier = Modifier
@@ -1786,14 +1810,6 @@ fun OverviewScreen(
     
     // 1. Tactile Account SWITCHER Button Row
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-      Text(
-        text = "Switch Connected Accounts",
-        color = CoralOrange,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 0.5.sp
-      )
-      
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -1871,19 +1887,6 @@ fun OverviewScreen(
                 fontFamily = FontFamily.Monospace
               )
             }
-            
-            Button(
-              onClick = { viewModel.triggerAllImmediateDue() },
-              colors = ButtonDefaults.buttonColors(containerColor = CoralOrange),
-              contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-              modifier = Modifier
-                .height(30.dp)
-                .testTag("run_audit_button")
-            ) {
-              Icon(Icons.Default.Refresh, contentDescription = "Run", tint = NavyBackground, modifier = Modifier.size(12.dp))
-              Spacer(modifier = Modifier.width(4.dp))
-              Text("Pay Due", color = NavyBackground, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
           }
           
           Spacer(modifier = Modifier.height(6.dp))
@@ -1930,6 +1933,8 @@ fun OverviewScreen(
 
     // 4. Interactive Live Student Allowance Allocator (Budget Planner)
     val totalAllocated = foodAllocCoerced + rentAllocCoerced + transportAllocCoerced + savingsAllocCoerced
+    val remainingAllowance = totalAllowanceLimit - totalAllocated
+    val progressOfAllowance = (totalAllocated / totalAllowanceLimit.coerceAtLeast(1f)).coerceIn(0f, 1f)
 
     Card(
       colors = CardDefaults.cardColors(containerColor = NavySurface),
@@ -1938,31 +1943,199 @@ fun OverviewScreen(
       modifier = Modifier.fillMaxWidth()
     ) {
       Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+          text = "Allowance Allocator & Planner",
+          color = CoralOrange,
+          fontWeight = FontWeight.Black,
+          fontSize = 13.sp
+        )
+
+        HorizontalDivider(color = NavyPrimary, thickness = 1.dp)
+
+        // Separated Total Planned component with distinct BlueAccent color and Lock/Unlock functionality
+        Card(
+          colors = CardDefaults.cardColors(
+            containerColor = if (isDarkThemeGlobal) Color(0x1200B4D8) else Color(0x0A00B4D8)
+          ),
+          shape = RoundedCornerShape(12.dp),
+          border = BorderStroke(
+            1.dp,
+            if (isTotalPlannedLocked) BlueAccent.copy(alpha = 0.25f) else BlueAccent.copy(alpha = 0.6f)
+          ),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Lock,
+                  contentDescription = if (isTotalPlannedLocked) "Locked" else "Unlocked",
+                  tint = if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.8f) else BlueAccent.copy(alpha = 0.5f),
+                  modifier = Modifier.size(16.dp)
+                )
+                Text(
+                  text = "TOTAL PLANNED",
+                  color = BlueAccent,
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Black,
+                  letterSpacing = 0.5.sp
+                )
+                if (isTotalPlannedLocked) {
+                  Surface(
+                    color = Color.Red.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(4.dp)
+                  ) {
+                    Text(
+                      text = "LOCKED",
+                      color = Color.Red,
+                      fontSize = 8.sp,
+                      fontWeight = FontWeight.Bold,
+                      modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                  }
+                }
+              }
+
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+              ) {
+                Text(
+                  text = "BWP ${totalAllowanceLimit.toInt()}",
+                  color = BlueAccent,
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Black
+                )
+                IconButton(
+                  onClick = { isTotalPlannedLocked = !isTotalPlannedLocked },
+                  modifier = Modifier.size(28.dp)
+                ) {
+                  Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Toggle Lock",
+                    tint = if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.8f) else BlueAccent,
+                    modifier = Modifier.size(16.dp)
+                  )
+                }
+              }
+            }
+
+            // Amount input field above slider for Total Planned
+            OutlinedTextField(
+              value = totalAllowanceInput,
+              onValueChange = { newVal ->
+                if (!isTotalPlannedLocked) {
+                  val clean = newVal.filter { it.isDigit() }
+                  totalAllowanceInput = clean
+                  clean.toFloatOrNull()?.let {
+                    totalAllowanceLimit = it
+                  }
+                }
+              },
+              enabled = !isTotalPlannedLocked,
+              placeholder = { Text("Enter Total Planned...", fontSize = 11.sp, color = TextMuted) },
+              textStyle = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = if (isTotalPlannedLocked) Color.Gray else BlueAccent),
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = BlueAccent,
+                unfocusedTextColor = BlueAccent,
+                disabledTextColor = Color.Gray,
+                focusedBorderColor = BlueAccent,
+                unfocusedBorderColor = if (isDarkThemeGlobal) BlueAccent.copy(alpha = 0.3f) else BlueAccent.copy(alpha = 0.2f),
+                disabledBorderColor = if (isDarkThemeGlobal) Color(0xFF1E293B) else Color(0xFFE2E8F0),
+                focusedContainerColor = if (isDarkThemeGlobal) Color(0x0F00B4D8) else Color(0x0500B4D8),
+                unfocusedContainerColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent
+              ),
+              prefix = { Text("BWP ", fontSize = 11.sp, color = if (isTotalPlannedLocked) Color.Gray else BlueAccent, fontWeight = FontWeight.Bold) },
+              modifier = Modifier.fillMaxWidth().height(48.dp),
+              shape = RoundedCornerShape(8.dp),
+              singleLine = true,
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            Slider(
+              value = totalAllowanceLimit,
+              onValueChange = { if (!isTotalPlannedLocked) totalAllowanceLimit = it },
+              valueRange = 1000f..10000f,
+              enabled = !isTotalPlannedLocked,
+              colors = SliderDefaults.colors(
+                thumbColor = if (isTotalPlannedLocked) Color.Gray else BlueAccent,
+                activeTrackColor = BlueAccent,
+                inactiveTrackColor = if (isDarkThemeGlobal) Color(0xFF1E293B) else Color(0xFFE2E8F0),
+                disabledThumbColor = Color.Gray.copy(alpha = 0.6f),
+                disabledActiveTrackColor = BlueAccent.copy(alpha = 0.2f),
+                disabledInactiveTrackColor = BlueAccent.copy(alpha = 0.1f)
+              ),
+              modifier = Modifier.height(24.dp)
+            )
+          }
+        }
+
+        // Progress breakdown & status message (Moved below Total Planned)
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          Text(
-            text = "Allowance Allocator & Planner",
-            color = CoralOrange,
-            fontWeight = FontWeight.Black,
-            fontSize = 13.sp
-          )
-          Text(
-            text = "Total Planned: BWP ${totalAllocated.toInt()}",
-            color = GoldOrange,
-            fontWeight = FontWeight.Black,
-            fontSize = 12.sp
-          )
+          Column {
+            if (remainingAllowance >= 0) {
+              Text(
+                text = "Remaining: BWP ${remainingAllowance.toInt()}",
+                color = if (remainingAllowance == 0f) Color.Green else TextPrimary,
+                fontWeight = FontWeight.Black,
+                fontSize = 12.sp
+              )
+            } else {
+              Text(
+                text = "⚠️ Deficit: BWP ${Math.abs(remainingAllowance).toInt()}",
+                color = CoralOrange,
+                fontWeight = FontWeight.Black,
+                fontSize = 12.sp
+              )
+            }
+          }
+
+          Box(
+            modifier = Modifier
+              .clip(RoundedCornerShape(6.dp))
+              .background(if (remainingAllowance >= 0) Color(0x1A4CAF50) else Color(0x1AF44336))
+              .padding(horizontal = 8.dp, vertical = 4.dp)
+          ) {
+            Text(
+              text = if (remainingAllowance >= 0) "IN BUDGET" else "OVERDRAFT",
+              color = if (remainingAllowance >= 0) Color(0xFF4CAF50) else Color(0xFFF44336),
+              fontWeight = FontWeight.Black,
+              fontSize = 10.sp
+            )
+          }
         }
+
+        LinearProgressIndicator(
+          progress = { progressOfAllowance },
+          modifier = Modifier
+            .fillMaxWidth()
+            .height(6.dp)
+            .clip(CircleShape),
+          color = if (remainingAllowance >= 0) GoldOrange else Color(0xFFF44336),
+          trackColor = NavyPrimary
+        )
 
         HorizontalDivider(color = NavyPrimary, thickness = 1.dp)
 
         // Custom Allocations Sliders Customization
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          // Category 1: Food
-          Column {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+          // Category 1: Groceries
+          Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
@@ -1973,10 +2146,35 @@ fun OverviewScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
               ) {
                 Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
-                Text("Food & Dining", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("Groceries", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
-              Text("BWP ${foodAllocCoerced.toInt()} / Max ${foodLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+              Text("Max Limit: BWP ${foodLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
+            OutlinedTextField(
+              value = foodAllocInput,
+              onValueChange = { newVal ->
+                val clean = newVal.filter { it.isDigit() }
+                foodAllocInput = clean
+                clean.toFloatOrNull()?.let {
+                  foodAlloc = it
+                }
+              },
+              placeholder = { Text("Enter amount...", fontSize = 11.sp, color = TextMuted) },
+              textStyle = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary),
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                focusedBorderColor = CoralOrange,
+                unfocusedBorderColor = if (isDarkThemeGlobal) Color(0xFF334155) else Color(0xFFCBD5E1),
+                focusedContainerColor = if (isDarkThemeGlobal) Color(0xFF1E293B) else Color(0xFFF8FAFC),
+                unfocusedContainerColor = Color.Transparent
+              ),
+              prefix = { Text("BWP ", fontSize = 11.sp, color = GoldOrange, fontWeight = FontWeight.Bold) },
+              modifier = Modifier.fillMaxWidth().height(48.dp),
+              shape = RoundedCornerShape(8.dp),
+              singleLine = true,
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
             Slider(
               value = foodAllocCoerced,
               onValueChange = { foodAlloc = it },
@@ -1991,7 +2189,7 @@ fun OverviewScreen(
           }
 
           // Category 2: Rent / Campus Residence
-          Column {
+          Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
@@ -2004,8 +2202,33 @@ fun OverviewScreen(
                 Icon(Icons.Default.Home, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
                 Text("Residence Rent / Boarding", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
-              Text("BWP ${rentAllocCoerced.toInt()} / Max ${rentLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+              Text("Max Limit: BWP ${rentLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
+            OutlinedTextField(
+              value = rentAllocInput,
+              onValueChange = { newVal ->
+                val clean = newVal.filter { it.isDigit() }
+                rentAllocInput = clean
+                clean.toFloatOrNull()?.let {
+                  rentAlloc = it
+                }
+              },
+              placeholder = { Text("Enter amount...", fontSize = 11.sp, color = TextMuted) },
+              textStyle = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary),
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                focusedBorderColor = CoralOrange,
+                unfocusedBorderColor = if (isDarkThemeGlobal) Color(0xFF334155) else Color(0xFFCBD5E1),
+                focusedContainerColor = if (isDarkThemeGlobal) Color(0xFF1E293B) else Color(0xFFF8FAFC),
+                unfocusedContainerColor = Color.Transparent
+              ),
+              prefix = { Text("BWP ", fontSize = 11.sp, color = GoldOrange, fontWeight = FontWeight.Bold) },
+              modifier = Modifier.fillMaxWidth().height(48.dp),
+              shape = RoundedCornerShape(8.dp),
+              singleLine = true,
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
             Slider(
               value = rentAllocCoerced,
               onValueChange = { rentAlloc = it },
@@ -2019,8 +2242,8 @@ fun OverviewScreen(
             )
           }
 
-          // Category 3: Kombi Transport
-          Column {
+          // Category 3: Combi Transport
+          Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
@@ -2031,10 +2254,35 @@ fun OverviewScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
               ) {
                 Icon(CustomBusIcon, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
-                Text("Kombi & Taxi Transport", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("Combi & Taxi Transport", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
-              Text("BWP ${transportAllocCoerced.toInt()} / Max ${transportLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+              Text("Max Limit: BWP ${transportLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
+            OutlinedTextField(
+              value = transportAllocInput,
+              onValueChange = { newVal ->
+                val clean = newVal.filter { it.isDigit() }
+                transportAllocInput = clean
+                clean.toFloatOrNull()?.let {
+                  transportAlloc = it
+                }
+              },
+              placeholder = { Text("Enter amount...", fontSize = 11.sp, color = TextMuted) },
+              textStyle = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary),
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                focusedBorderColor = CoralOrange,
+                unfocusedBorderColor = if (isDarkThemeGlobal) Color(0xFF334155) else Color(0xFFCBD5E1),
+                focusedContainerColor = if (isDarkThemeGlobal) Color(0xFF1E293B) else Color(0xFFF8FAFC),
+                unfocusedContainerColor = Color.Transparent
+              ),
+              prefix = { Text("BWP ", fontSize = 11.sp, color = GoldOrange, fontWeight = FontWeight.Bold) },
+              modifier = Modifier.fillMaxWidth().height(48.dp),
+              shape = RoundedCornerShape(8.dp),
+              singleLine = true,
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
             Slider(
               value = transportAllocCoerced,
               onValueChange = { transportAlloc = it },
@@ -2049,7 +2297,7 @@ fun OverviewScreen(
           }
 
           // Category 4: savings
-          Column {
+          Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.SpaceBetween,
@@ -2062,8 +2310,33 @@ fun OverviewScreen(
                 Icon(CustomSavingsIcon, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(16.dp))
                 Text("Smart Emergency Savings", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
               }
-              Text("BWP ${savingsAllocCoerced.toInt()} / Max ${savingsLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Black)
+              Text("Max Limit: BWP ${savingsLimit.toInt()}", color = GoldOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
+            OutlinedTextField(
+              value = savingsAllocInput,
+              onValueChange = { newVal ->
+                val clean = newVal.filter { it.isDigit() }
+                savingsAllocInput = clean
+                clean.toFloatOrNull()?.let {
+                  savingsAlloc = it
+                }
+              },
+              placeholder = { Text("Enter amount...", fontSize = 11.sp, color = TextMuted) },
+              textStyle = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextPrimary),
+              colors = OutlinedTextFieldDefaults.colors(
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
+                focusedBorderColor = CoralOrange,
+                unfocusedBorderColor = if (isDarkThemeGlobal) Color(0xFF334155) else Color(0xFFCBD5E1),
+                focusedContainerColor = if (isDarkThemeGlobal) Color(0xFF1E293B) else Color(0xFFF8FAFC),
+                unfocusedContainerColor = Color.Transparent
+              ),
+              prefix = { Text("BWP ", fontSize = 11.sp, color = GoldOrange, fontWeight = FontWeight.Bold) },
+              modifier = Modifier.fillMaxWidth().height(48.dp),
+              shape = RoundedCornerShape(8.dp),
+              singleLine = true,
+              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
             Slider(
               value = savingsAllocCoerced,
               onValueChange = { savingsAlloc = it },
@@ -2077,6 +2350,8 @@ fun OverviewScreen(
             )
           }
         }
+
+
       }
     }
 
@@ -2108,7 +2383,6 @@ fun AutoPayScreen(
     ) {
       Column {
         Text("Scheduled Auto-Payments", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text("Authorized actions working with BSB accounts", color = TextMuted, fontSize = 12.sp)
       }
 
       FilledIconButton(
@@ -3284,68 +3558,25 @@ fun ExpensesScreen(
           .weight(1f),
         contentAlignment = Alignment.Center
       ) {
-        Text("No expenses logged for this month. Excellent!", color = TextMuted, fontSize = 12.sp)
+        Text("No recorded transactions for this cycle.", color = TextMuted, fontSize = 12.sp)
       }
     } else {
-      LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.weight(1f)
+      Card(
+        colors = CardDefaults.cardColors(containerColor = NavySurface),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
+        modifier = Modifier.fillMaxWidth().weight(1f)
       ) {
-        items(expenses) { exp ->
-          Card(
-            colors = CardDefaults.cardColors(containerColor = NavySurface),
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
-            modifier = Modifier.fillMaxWidth()
-          ) {
-            Row(
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-              horizontalArrangement = Arrangement.SpaceBetween,
-              verticalAlignment = Alignment.CenterVertically
-            ) {
-              Column(modifier = Modifier.weight(1f)) {
-                Text(exp.title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                  Surface(
-                    color = NavyPrimary,
-                    shape = RoundedCornerShape(4.dp)
-                  ) {
-                    Text(
-                      text = exp.category,
-                      color = CoralOrange,
-                      fontSize = 9.sp,
-                      fontWeight = FontWeight.Bold,
-                      modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                  }
-                  Spacer(modifier = Modifier.width(8.dp))
-                  Text(
-                    text = java.text.SimpleDateFormat("d MMM, hh:mm a")
-                      .format(java.util.Date(exp.timestamp)),
-                    color = TextMuted,
-                    fontSize = 10.sp
-                  )
-                }
-              }
-
-              Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                  text = "P ${String.format("%.2f", exp.amount)}",
-                  color = CoralOrange,
-                  fontWeight = FontWeight.Black,
-                  fontSize = 15.sp
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                IconButton(
-                  onClick = { viewModel.deleteExpense(exp) },
-                  modifier = Modifier.testTag("delete_expense_${exp.id}")
-                ) {
-                  Icon(Icons.Default.Delete, contentDescription = "Delete", tint = TextMuted.copy(alpha = 0.6f))
-                }
-              }
+        LazyColumn(
+          modifier = Modifier.fillMaxSize().padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+          itemsIndexed(expenses) { index, exp ->
+            TransactionItemRow(
+              exp = exp,
+              onDeleteClick = { viewModel.deleteExpense(exp) }
+            )
+            if (index < expenses.size - 1) {
+              HorizontalDivider(color = if (isDarkThemeGlobal) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.04f), thickness = 1.dp)
             }
           }
         }
@@ -3357,10 +3588,10 @@ fun ExpensesScreen(
   if (showAddExpenseDialog) {
     var titleText by remember { mutableStateOf("") }
     var amountText by remember { mutableStateOf("") }
-    var categoryText by remember { mutableStateOf("Food & Groceries") }
+    var categoryText by remember { mutableStateOf("Groceries") }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
-    val expenseCategories = listOf("Food & Groceries", "Rent & Lodging", "Kombi & Taxi Transport", "Student Data/Wifi", "Smart Savings")
+    val expenseCategories = listOf("Groceries", "Rent & Lodging", "Combi & Taxi Transport", "Student Data/Wifi", "Smart Savings")
 
     Dialog(onDismissRequest = { showAddExpenseDialog = false }) {
       Surface(
@@ -3567,6 +3798,157 @@ fun NotificationsScreen(
               )
             }
           }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+fun TransactionItemRow(
+  exp: ExpenseItem,
+  onDeleteClick: (() -> Unit)? = null
+) {
+  val catColor: Color
+  val catIcon: ImageVector
+  val catLower = exp.category.lowercase()
+  
+  when {
+    catLower.contains("data") || catLower.contains("wifi") || catLower.contains("net") || catLower.contains("mobile") || catLower.contains("phone") || catLower.contains("internet") -> {
+      catIcon = Icons.Default.Phone
+      catColor = Color(0xFF2196F3) // Soft Blue
+    }
+    catLower.contains("study") || catLower.contains("book") || catLower.contains("school") || catLower.contains("education") -> {
+      catIcon = Icons.Default.Star
+      catColor = Color(0xFF9C27B0) // Soft Purple
+    }
+    catLower.contains("transport") || catLower.contains("combi") || catLower.contains("taxi") || catLower.contains("ride") -> {
+      catIcon = Icons.Default.Refresh
+      catColor = Color(0xFFFF9800) // Soft Orange/Amber
+    }
+    catLower.contains("groceries") || catLower.contains("food") || catLower.contains("cafeteria") || catLower.contains("meal") || catLower.contains("dining") || catLower.contains("rest") -> {
+      catIcon = Icons.Default.ShoppingCart
+      catColor = Color(0xFF4CAF50) // Soft Green
+    }
+    catLower.contains("rent") || catLower.contains("lodging") || catLower.contains("room") || catLower.contains("hostel") || catLower.contains("house") -> {
+      catIcon = Icons.Default.Home
+      catColor = Color(0xFFE91E63) // Soft Pink/Red
+    }
+    catLower.contains("savings") || catLower.contains("invest") || catLower.contains("pot") -> {
+      catIcon = Icons.Default.Lock
+      catColor = Color(0xFF009688) // Soft Teal
+    }
+    else -> {
+      catIcon = Icons.Default.List
+      catColor = Color(0xFF9E9E9E) // Soft Gray
+    }
+  }
+
+  val isAllowanceDeposit = exp.title.lowercase().contains("allowance") || exp.title.lowercase().contains("deposit") || exp.amount < 0 || exp.category.lowercase().contains("deposit")
+
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .padding(vertical = 8.dp),
+    verticalAlignment = Alignment.CenterVertically
+  ) {
+    // Left: Circular category icon badge
+    Box(
+      modifier = Modifier
+        .size(42.dp)
+        .clip(CircleShape)
+        .background(catColor.copy(alpha = 0.15f)),
+      contentAlignment = Alignment.Center
+    ) {
+      Icon(
+        imageVector = catIcon,
+        contentDescription = exp.category,
+        tint = catColor,
+        modifier = Modifier.size(20.dp)
+      )
+    }
+
+    Spacer(modifier = Modifier.width(12.dp))
+
+    // Middle: Title & Date & mini-tag
+    Column(modifier = Modifier.weight(1f)) {
+      Text(
+        text = exp.title,
+        color = TextPrimary,
+        fontWeight = FontWeight.Bold,
+        fontSize = 13.sp,
+        maxLines = 1
+      )
+      Spacer(modifier = Modifier.height(2.dp))
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+          text = java.text.SimpleDateFormat("d MMM yyyy, hh:mm a")
+            .format(java.util.Date(exp.timestamp)),
+          color = TextMuted,
+          fontSize = 10.sp
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Box(
+          modifier = Modifier
+            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(3.dp))
+            .padding(horizontal = 4.dp, vertical = 1.dp)
+        ) {
+          Text(
+            text = exp.category.uppercase(),
+            color = catColor.copy(alpha = 0.9f),
+            fontSize = 7.sp,
+            fontWeight = FontWeight.Bold
+          )
+        }
+      }
+    }
+
+    // Right: Amount and Delete if available
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      horizontalArrangement = Arrangement.End
+    ) {
+      Column(horizontalAlignment = Alignment.End) {
+        if (isAllowanceDeposit) {
+          Text(
+            text = "+BWP ${String.format("%,.2f", Math.abs(exp.amount))}",
+            color = Color(0xFF4CAF50),
+            fontWeight = FontWeight.Black,
+            fontSize = 13.sp
+          )
+          Text(
+            text = "Credit",
+            color = Color(0xFF4CAF50).copy(alpha = 0.7f),
+            fontSize = 8.sp,
+            fontWeight = FontWeight.Bold
+          )
+        } else {
+          Text(
+            text = "-BWP ${String.format("%,.2f", exp.amount)}",
+            color = if (isDarkThemeGlobal) Color.White else Color.Black,
+            fontWeight = FontWeight.Black,
+            fontSize = 13.sp
+          )
+          Text(
+            text = "Debit",
+            color = TextMuted,
+            fontSize = 8.sp
+          )
+        }
+      }
+      
+      if (onDeleteClick != null) {
+        Spacer(modifier = Modifier.width(8.dp))
+        IconButton(
+          onClick = onDeleteClick,
+          modifier = Modifier.size(36.dp)
+        ) {
+          Icon(
+            imageVector = Icons.Default.Delete,
+            contentDescription = "Delete",
+            tint = Color.Red.copy(alpha = 0.6f),
+            modifier = Modifier.size(16.dp)
+          )
         }
       }
     }
@@ -4126,7 +4508,7 @@ fun ProfileScreen(
                             OutlinedTextField(
                                 value = draftFoodLimit,
                                 onValueChange = { draftFoodLimit = it.filter { c -> c.isDigit() } },
-                                label = { Text("Food Max Limit") },
+                                label = { Text("Groceries Max Limit") },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
@@ -4213,21 +4595,7 @@ fun ProfileScreen(
                         modifier = Modifier.padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "📋 ACTIVE BUDGET ALLOCATION LIMITS",
-                            color = CoralOrange,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 11.sp,
-                            letterSpacing = 0.5.sp
-                        )
-                        
-                        Text(
-                            text = "Modified limits dynamic feedback is applied instantly to budget sliders on the overview board.",
-                            color = TextMuted,
-                            fontSize = 11.sp
-                        )
-                        
-                        HorizontalDivider(color = NavyPrimary, thickness = 1.dp)
+
                         
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -4241,7 +4609,7 @@ fun ProfileScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Food & Dining Limit", color = TextPrimary, fontSize = 12.sp)
+                            Text("Groceries Limit", color = TextPrimary, fontSize = 12.sp)
                             Text("P ${String.format("%,.0f", loggedInUser?.foodMaxLimit ?: 1500.0)}", color = GoldOrange, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                         
@@ -4249,7 +4617,7 @@ fun ProfileScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Kombi Transport Limit", color = TextPrimary, fontSize = 12.sp)
+                            Text("Combi Transport Limit", color = TextPrimary, fontSize = 12.sp)
                             Text("P ${String.format("%,.0f", loggedInUser?.transportMaxLimit ?: 1000.0)}", color = GoldOrange, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                         
@@ -4261,12 +4629,7 @@ fun ProfileScreen(
                             Text("P ${String.format("%,.0f", loggedInUser?.savingsMaxLimit ?: 2000.0)}", color = GoldOrange, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         }
                         
-                        Text(
-                            text = "💡 Tap 'Edit Info' above to customize your limits.",
-                            color = CoralOrange,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+
                     }
                 }
             }
@@ -4363,8 +4726,17 @@ fun CalendarScreen(
   var selectedMonthIndex by remember { mutableStateOf(5) } // Default to June (Active simulation month)
   var selectedCalendarDay by remember { mutableStateOf(simulatedDay) }
   
+  val monthsListState = rememberLazyListState()
+  val coroutineScope = rememberCoroutineScope()
+
   LaunchedEffect(simulatedDay) {
     selectedCalendarDay = simulatedDay
+  }
+
+  LaunchedEffect(selectedMonthIndex) {
+    coroutineScope.launch {
+      monthsListState.animateScrollToItem(selectedMonthIndex)
+    }
   }
 
   // Get days in the selected month for 2026
@@ -4400,95 +4772,7 @@ fun CalendarScreen(
       .verticalScroll(scrollState),
     verticalArrangement = Arrangement.spacedBy(16.dp)
   ) {
-    // 1. Current Simulation Status / Timeline Box
-    Card(
-      colors = CardDefaults.cardColors(containerColor = NavySurface),
-      shape = RoundedCornerShape(16.dp),
-      border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
-      modifier = Modifier.fillMaxWidth()
-    ) {
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .padding(16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-      ) {
-        Row(
-          verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-          // Large circular graphic badge for current day
-          Box(
-            modifier = Modifier
-              .size(64.dp)
-              .clip(CircleShape)
-              .background(
-                brush = Brush.verticalGradient(
-                  colors = listOf(CoralOrange, Color(0xFFD97706))
-                )
-              ),
-            contentAlignment = Alignment.Center
-          ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-              Text(
-                text = "DAY",
-                color = NavyBackground,
-                fontWeight = FontWeight.Black,
-                fontSize = 10.sp,
-                letterSpacing = 1.sp
-              )
-              Text(
-                text = "$simulatedDay",
-                color = NavyBackground,
-                fontWeight = FontWeight.Black,
-                fontSize = 26.sp,
-                lineHeight = 28.sp
-              )
-            }
-          }
-
-          Column {
-            Text(
-              text = "Bank Cycle Timeline",
-              color = TextPrimary,
-              fontWeight = FontWeight.ExtraBold,
-              fontSize = 16.sp
-            )
-            Text(
-              text = "Active month: ${months[5]} 2026",
-              color = TextMuted,
-              fontSize = 11.sp
-            )
-          }
-        }
-
-        // Highly graphic Advance Day Button
-        Button(
-          onClick = { viewModel.advanceSimulatedDay() },
-          colors = ButtonDefaults.buttonColors(containerColor = CoralOrange),
-          shape = RoundedCornerShape(12.dp),
-          contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-          modifier = Modifier.height(44.dp)
-        ) {
-          Icon(
-            imageVector = Icons.Default.PlayArrow,
-            contentDescription = "Advance Day",
-            tint = NavyBackground,
-            modifier = Modifier.size(18.dp)
-          )
-          Spacer(modifier = Modifier.width(6.dp))
-          Text(
-            text = "Next Day",
-            color = NavyBackground,
-            fontWeight = FontWeight.Black,
-            fontSize = 12.sp
-          )
-        }
-      }
-    }
-
-    // 2. Expanded Multi-Month Calendar Core Card
+    // Expanded Multi-Month Calendar Core Card
     Card(
       colors = CardDefaults.cardColors(containerColor = NavySurface),
       shape = RoundedCornerShape(16.dp),
@@ -4539,14 +4823,13 @@ fun CalendarScreen(
           }
         }
 
-        // B. Quick Month Horizontal Selection Pills
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+        // B. Quick Month Horizontal Selection Pills with LazyRow to auto-scroll
+        LazyRow(
+          state = monthsListState,
+          modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-          months.forEachIndexed { idx, mName ->
+          itemsIndexed(months) { idx, mName ->
             val isCurrentSel = idx == selectedMonthIndex
             Surface(
               onClick = { 
@@ -4697,7 +4980,7 @@ fun CalendarScreen(
           verticalAlignment = Alignment.CenterVertically
         ) {
           Text(
-            text = "DUE DETAILS FOR DAY $selectedCalendarDay (${months[selectedMonthIndex].uppercase()})",
+            text = "DUE DETAILS FOR ${months[selectedMonthIndex].uppercase()} $selectedCalendarDay",
             color = CoralOrange,
             fontWeight = FontWeight.Black,
             fontSize = 11.sp,
@@ -4891,16 +5174,11 @@ fun CalendarScreen(
         ) {
           Column {
             Text(
-              text = "📋 MONTHLY TRANSACTION HISTORY",
+              text = "MONTHLY TRANSACTION HISTORY",
               color = CoralOrange,
               fontWeight = FontWeight.Black,
               fontSize = 11.sp,
               letterSpacing = 0.5.sp
-            )
-            Text(
-              text = "Dynamic record of Pula outlays & companion additions",
-              color = TextMuted,
-              fontSize = 10.sp
             )
           }
 
@@ -4926,57 +5204,28 @@ fun CalendarScreen(
             contentAlignment = Alignment.Center
           ) {
             Text(
-              text = "No recorded transactions/outlays for this cycle. Excellent!",
+              text = "No recorded transactions for this cycle.",
               color = TextMuted,
               fontSize = 11.sp,
               fontWeight = FontWeight.Bold
             )
           }
         } else {
-          Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            expenses.forEach { exp ->
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .clip(RoundedCornerShape(10.dp))
-                  .background(NavyPrimary.copy(alpha = 0.4f))
-                  .border(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.05f) else Color.Black.copy(alpha = 0.03f), RoundedCornerShape(10.dp))
-                  .padding(10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Column(modifier = Modifier.weight(1f)) {
-                  Text(exp.title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                  Spacer(modifier = Modifier.height(2.dp))
-                  Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                      color = NavyBackground,
-                      shape = RoundedCornerShape(4.dp)
-                    ) {
-                      Text(
-                        text = exp.category,
-                        color = CoralOrange,
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                      )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                      text = java.text.SimpleDateFormat("d MMM, hh:mm a")
-                        .format(java.util.Date(exp.timestamp)),
-                      color = TextMuted,
-                      fontSize = 9.sp
-                    )
-                  }
-                }
-
-                Text(
-                  text = "P ${String.format("%.2f", exp.amount)}",
-                  color = CoralOrange,
-                  fontWeight = FontWeight.Black,
-                  fontSize = 13.sp
+          Card(
+            colors = CardDefaults.cardColors(containerColor = NavySurface),
+            shape = RoundedCornerShape(12.dp),
+            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)) {
+              expenses.forEachIndexed { index, exp ->
+                TransactionItemRow(
+                  exp = exp,
+                  onDeleteClick = null // No edit/delete on the overview dashboard
                 )
+                if (index < expenses.size - 1) {
+                  HorizontalDivider(color = if (isDarkThemeGlobal) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.04f), thickness = 1.dp)
+                }
               }
             }
           }
