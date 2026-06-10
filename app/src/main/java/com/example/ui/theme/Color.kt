@@ -21,7 +21,7 @@ val NavyDistant: Color
     get() = if (isDarkThemeGlobal) Color(0xFF2C436F) else Color(0xFFCBD5E1)
 
 val CoralOrange: Color
-    get() = if (isDarkThemeGlobal) Color(0xFFFEF08A) else Color(0xFFCA8A04) // Pastel yellowish for buttons and highlights
+    get() = if (isDarkThemeGlobal) Color(0xFF9EA7B6) else Color(0xFF4A5568) // Thunder grey for buttons and highlights
 
 val GoldOrange: Color
     get() = if (isDarkThemeGlobal) Color(0xFF94A3B8) else Color(0xFF475569) // Grey accent
