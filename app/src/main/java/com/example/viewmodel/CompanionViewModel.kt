@@ -167,7 +167,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                 }
             }
             
-            // SYNC: If Wifi in allocator changes, update the Wifi Auto-Pay if it exists
             if (wifi != null) {
                 val wifiPayment = payments.value.find { it.paymentType == "Wifi" }
                 if (wifiPayment != null && wifiPayment.amount != wifi) {
@@ -175,7 +174,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                 }
             }
             
-            // SYNC: If Mobile in allocator changes, update the Mobile Subscription Auto-Pay if it exists
             if (mobile != null) {
                 val mobilePayment = payments.value.find { it.paymentType == "Mobile Subscription" }
                 if (mobilePayment != null && mobilePayment.amount != mobile) {
@@ -382,12 +380,26 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
 
             // SYNC: Update Allocator if adding certain Auto-Pays
             val current = _loggedInUser.value ?: return@launch
-            val updated = when (type) {
+            var updated = when (type) {
                 "Rent" -> current.copy(rentAlloc = amount)
                 "Wifi" -> current.copy(wifiAlloc = amount)
                 "Mobile Subscription" -> current.copy(mobileAlloc = amount)
                 else -> current
             }
+            
+            // Auto-add to visible categories to avoid confusion
+            val cats = updated.visibleCategories.split(",").map { it.trim() }.toMutableList()
+            val catToAdd = when(type) {
+                "Rent" -> "Rent"
+                "Wifi" -> "Wifi"
+                "Mobile Subscription" -> "Mobile"
+                else -> null
+            }
+            if (catToAdd != null && !cats.contains(catToAdd)) {
+                cats.add(catToAdd)
+                updated = updated.copy(visibleCategories = cats.filter { it.isNotBlank() }.joinToString(","))
+            }
+
             if (updated != current) {
                 repository.registerUser(updated)
                 _loggedInUser.value = updated
