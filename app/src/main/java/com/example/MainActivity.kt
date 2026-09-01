@@ -626,7 +626,7 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
               .testTag("orbit_chat_bubble")
           ) {
             Icon(
-              imageVector = Icons.Default.QuestionAnswer,
+              imageVector = Icons.Default.Person,
               contentDescription = "Open Orbit Chat",
               tint = NavyBackground,
               modifier = Modifier.size(28.dp)
