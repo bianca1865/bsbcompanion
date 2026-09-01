@@ -62,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.*
@@ -858,7 +859,7 @@ fun CompanionHeader(
     ) {
       Row(verticalAlignment = Alignment.CenterVertically) {
         Image(
-          painter = painterResource(id = R.drawable.bsb),
+          painter = painterResource(id = R.drawable.app_logo),
           contentDescription = "Student 360 Logo",
           modifier = Modifier.size(34.dp).clip(RoundedCornerShape(6.dp))
         )
@@ -869,7 +870,7 @@ fun CompanionHeader(
             color = TextPrimary,
             fontWeight = FontWeight.Black,
             fontSize = 16.sp,
-            fontFamily = FontFamily.SansSerif
+            fontFamily = FontFamily.Serif
           )
           Text(
             text = "Savings Partner Utility",
@@ -926,53 +927,55 @@ fun OrbitAssistantDialog(userName: String?, onDismiss: () -> Unit) {
     animationSpec = infiniteRepeatable(animation = tween(1200), repeatMode = androidx.compose.animation.core.RepeatMode.Reverse)
   )
 
-  Dialog(onDismissRequest = onDismiss) {
-    Surface(
-      shape = RoundedCornerShape(12.dp),
-      color = NavySurface,
-      border = BorderStroke(1.dp, NavyPrimary),
-      modifier = Modifier.padding(12.dp)
-    ) {
-      Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-        // Animated robot avatar
-        Box(
-          modifier = Modifier
-            .size(64.dp)
-            .offset(y = bob.dp)
-            .background(NavyPrimary, shape = CircleShape),
-          contentAlignment = Alignment.Center
-        ) {
-          Icon(
-            imageVector = Icons.Default.Face,
-            contentDescription = "Orbit",
-            tint = CoralOrange,
-            modifier = Modifier.size(34.dp)
-          )
-          // Eyes - blinking
-          Box(modifier = Modifier
-            .align(Alignment.Center)
-            .offset(x = (-8).dp, y = (-2).dp)) {
-            Canvas(modifier = Modifier.size(6.dp)) {
-              drawCircle(color = Color.White.copy(alpha = blink))
+  Popup(alignment = Alignment.BottomEnd) {
+    Box(modifier = Modifier.padding(12.dp)) {
+      Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = NavySurface,
+        border = BorderStroke(1.dp, NavyPrimary),
+        modifier = Modifier.widthIn(max = 320.dp)
+      ) {
+        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+          // Animated robot avatar
+          Box(
+            modifier = Modifier
+              .size(56.dp)
+              .offset(y = bob.dp)
+              .background(NavyPrimary, shape = CircleShape),
+            contentAlignment = Alignment.Center
+          ) {
+            Icon(
+              imageVector = Icons.Default.Face,
+              contentDescription = "Orbit",
+              tint = CoralOrange,
+              modifier = Modifier.size(30.dp)
+            )
+            // Eyes - blinking
+            Box(modifier = Modifier
+              .align(Alignment.Center)
+              .offset(x = (-6).dp, y = (-2).dp)) {
+              Canvas(modifier = Modifier.size(5.dp)) {
+                drawCircle(color = Color.White.copy(alpha = blink))
+              }
+            }
+            Box(modifier = Modifier
+              .align(Alignment.Center)
+              .offset(x = 6.dp, y = (-2).dp)) {
+              Canvas(modifier = Modifier.size(5.dp)) {
+                drawCircle(color = Color.White.copy(alpha = blink))
+              }
             }
           }
-          Box(modifier = Modifier
-            .align(Alignment.Center)
-            .offset(x = 8.dp, y = (-2).dp)) {
-            Canvas(modifier = Modifier.size(6.dp)) {
-              drawCircle(color = Color.White.copy(alpha = blink))
+
+          Spacer(modifier = Modifier.width(8.dp))
+
+          Column(modifier = Modifier.weight(1f)) {
+            Text(text = "Hi ${'$'}{userName ?: \"there\"}, I'm Orbit.", color = TextPrimary, fontWeight = FontWeight.Black)
+            Text(text = "Your assistant in making financial decisions.", color = TextMuted, fontSize = 12.sp)
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+              TextButton(onClick = onDismiss) { Text("Dismiss") }
             }
-          }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-          Text(text = "Hi ${'$'}{userName ?: \"there\"}, I'm Orbit.", color = TextPrimary, fontWeight = FontWeight.Black)
-          Text(text = "Your assistant in making financial decisions.", color = TextMuted, fontSize = 12.sp)
-          Spacer(modifier = Modifier.height(8.dp))
-          Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-            TextButton(onClick = onDismiss) { Text("Dismiss") }
           }
         }
       }
@@ -1072,7 +1075,7 @@ fun AuthScreen(
         ) {
           Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
-              painter = painterResource(id = R.drawable.bsb),
+              painter = painterResource(id = R.drawable.app_logo),
               contentDescription = "Student 360 Logo",
               modifier = Modifier.size(46.dp).clip(RoundedCornerShape(8.dp))
             )
@@ -1082,7 +1085,8 @@ fun AuthScreen(
                 text = "Student 360",
                 color = TextPrimary,
                 fontWeight = FontWeight.Black,
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                fontFamily = FontFamily.Serif
               )
               Text(
                 text = "Student 360 • Secure Access",
@@ -2061,12 +2065,24 @@ fun OverviewScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
               ) {
-                Icon(
-                  imageVector = Icons.Default.Lock,
-                  contentDescription = if (isTotalPlannedLocked) "Locked" else "Unlocked",
-                  tint = if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.8f) else BlueAccent.copy(alpha = 0.5f),
-                  modifier = Modifier.size(16.dp)
-                )
+                IconButton(
+                  onClick = {
+                    val newVal = !isTotalPlannedLocked
+                    isTotalPlannedLocked = newVal
+                    prefs.edit().putBoolean("total_planned_locked", newVal).apply()
+                  },
+                  modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.12f) else Color.Transparent, CircleShape)
+                ) {
+                  Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = if (isTotalPlannedLocked) "Locked" else "Unlocked",
+                    tint = if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.8f) else BlueAccent.copy(alpha = 0.5f),
+                    modifier = Modifier.size(16.dp)
+                  )
+                }
                 Text(
                   text = "TOTAL PLANNED",
                   color = BlueAccent,
@@ -2100,24 +2116,6 @@ fun OverviewScreen(
                   fontSize = 12.sp,
                   fontWeight = FontWeight.Black
                 )
-                IconButton(
-                  onClick = {
-                    val newVal = !isTotalPlannedLocked
-                    isTotalPlannedLocked = newVal
-                    prefs.edit().putBoolean("total_planned_locked", newVal).apply()
-                  },
-                  modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.12f) else Color.Transparent, CircleShape)
-                ) {
-                  Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = "Toggle Lock",
-                    tint = if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.9f) else BlueAccent,
-                    modifier = Modifier.size(18.dp)
-                  )
-                }
               }
             }
 
