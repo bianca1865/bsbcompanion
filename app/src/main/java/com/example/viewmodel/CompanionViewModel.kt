@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 class CompanionViewModel(private val repository: Repository) : ViewModel() {
 
@@ -38,8 +39,8 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // Simulated Calendar Day (1 - 28)
-    private val _simulatedDay = MutableStateFlow(10)
+    // Simulated Calendar Day (set to current day)
+    private val _simulatedDay = MutableStateFlow(Calendar.getInstance().get(Calendar.DAY_OF_MONTH))
     val simulatedDay: StateFlow<Int> = _simulatedDay.asStateFlow()
 
     // Free Data zero-rating status (Monetization network mode)
@@ -257,7 +258,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             // Link a custom default account matching user's register details
             val accId = repository.addAccount(
                 BSBAccount(
-                    accountName = "BSB Ordinary Savings",
+                    accountName = "Student 360 Ordinary Savings",
                     accountNumber = "1024" + (1000000..9999999).random().toString(),
                     balance = 7500.00
                 )
@@ -275,7 +276,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                 )
             )
 
-            onResult(true, "Registration successful! Welcome to Botswana Savings Bank companion.")
+            onResult(true, "Registration successful! Welcome to Student 360.")
         }
     }
 
@@ -521,7 +522,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             val firstAccount = accountsList.firstOrNull()
             if (firstAccount == null) {
                 _pendingApproval.value = null
-                onResult(false, "No active BSB bank account linked!")
+                onResult(false, "No active Student 360 bank account linked!")
                 return@launch
             }
             if (user != null && purchase.amount > user.dailyCardLimit) {
@@ -585,7 +586,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                 val updated = allowanceAcc.copy(balance = allowanceAcc.balance + 2200.00)
                 repository.updateAccount(updated)
                 repository.addNotification(
-                    title = "BSB Allowance Direct Deposit",
+                    title = "Student 360 Allowance Direct Deposit",
                     message = "Your monthly tertiary student allowance of BWP 2,200.00 has been successfully deposited into account ${allowanceAcc.accountNumber} by Botswana Savings Bank."
                 )
                 _paymentExecutionEvent.emit("Allowance of BWP 2,200.00 Deposited!")

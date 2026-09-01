@@ -40,7 +40,7 @@ data class ScheduledPayment(
     val amount: Double,
     val paymentDay: Int,     // 1 - 31
     val lastPaymentDate: Long? = null, // timestamp
-    val selectedAccountId: Int, // Paid from this BSB account
+    val selectedAccountId: Int, // Paid from this Student 360 account
     val selectedCardId: Int? = null, // Optionally linked card
     val isActive: Boolean = true,
     val recipientAccount: String? = null,

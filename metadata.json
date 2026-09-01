@@ -1,6 +1,6 @@
 {
-  "name": "BSB Savings Companion",
-  "description": "BSB companion app tailored for students to track their P2,200 monthly allowance, plan budgets interactively, and log student expenditures.",
+  "name": "Student 360",
+  "description": "Student 360 companion app tailored for students to track their monthly allowance, plan budgets interactively, and log student expenditures.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

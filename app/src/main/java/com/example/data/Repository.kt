@@ -97,16 +97,16 @@ class Repository(private val db: AppDatabase) {
         notificationDao.clearAll()
     }
 
-    // Seed realistic Botswana Savings Bank data if empty
+    // Seed realistic Student 360 data if empty
     suspend fun seedDatabaseIfEmpty() {
         val existingAccounts = accountDao.getAllAccountsDirect()
         if (existingAccounts.isEmpty()) {
-            Log.d("Repository", "Seeding initial BSB companion data...")
+            Log.d("Repository", "Seeding initial Student 360 data...")
             
-            // Seed BSB Accounts (BWP - Botswana Pula)
+            // Seed Student 360 Accounts (BWP - Botswana Pula)
             val acc1Id = accountDao.insertAccount(
                 BSBAccount(
-                    accountName = "BSB Student Allowance",
+                    accountName = "Student Allowance",
                     accountNumber = "10243950621",
                     balance = 2200.00
                 )
@@ -274,7 +274,7 @@ class Repository(private val db: AppDatabase) {
                 notificationDao.insertNotification(
                     AppNotification(
                         title = "Payment Failed: Account Missing",
-                        message = "Declined: The source BSB Account for paying ${payment.payeeName} is no longer active.",
+                        message = "Declined: The source Student 360 Account for paying ${payment.payeeName} is no longer active.",
                         timestamp = System.currentTimeMillis()
                     )
                 )

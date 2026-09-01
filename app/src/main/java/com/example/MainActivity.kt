@@ -9,6 +9,10 @@ import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -228,12 +232,12 @@ val CustomSavingsIcon: ImageVector by lazy {
   }.build()
 }
 
-// Represent the 6 interactive screens of our BSB Savings Companion
+// Represent the 6 interactive screens of our Student 360 app
 enum class NavigationTab(val title: String, val icon: ImageVector) {
   OVERVIEW("Overview", Icons.Default.Home),
   CALENDAR("Calendar", Icons.Default.DateRange),
   AUTOPAY("Auto-Pay", Icons.Default.Refresh),
-  ACCOUNTS("BSB Wallets", CustomWalletIcon),
+  ACCOUNTS("Student 360 Wallets", CustomWalletIcon),
   EXPENSES("Expenses", Icons.Default.Check),
   PROFILE("Profile", Icons.Default.Person)
 }
@@ -256,7 +260,24 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
   val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
   val loggedInUser by viewModel.loggedInUser.collectAsStateWithLifecycle()
 
+  // Orbit assistant intro persistence
+  val prefsMain = context.getSharedPreferences("student360_prefs", android.content.Context.MODE_PRIVATE)
+  var showOrbitDialog by remember { mutableStateOf(isLoggedIn && !prefsMain.getBoolean("seen_orbit_intro", false)) }
+  LaunchedEffect(isLoggedIn) {
+    if (isLoggedIn && !prefsMain.getBoolean("seen_orbit_intro", false)) {
+      showOrbitDialog = true
+    }
+  }
+
   var selectedTab by remember { mutableStateOf(NavigationTab.OVERVIEW) }
+
+  // Show Orbit intro dialog if not seen
+  if (showOrbitDialog) {
+    OrbitAssistantDialog(userName = loggedInUser?.fullName?.split(" ")?.firstOrNull()) {
+      prefsMain.edit().putBoolean("seen_orbit_intro", true).apply()
+      showOrbitDialog = false
+    }
+  }
   var showNotificationsOverlay by remember { mutableStateOf(false) }
   var purchaseBiometricApproved by remember { mutableStateOf(false) }
 
@@ -310,7 +331,7 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "BSB VISA 3D-SECURE V2",
+                text = "Student 360 VISA 3D-SECURE V2",
                 color = CoralOrange,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Black,
@@ -330,7 +351,7 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "A payment authorization request is pending on your custom virtual BSB card.",
+                text = "A payment authorization request is pending on your custom virtual Student 360 card.",
                 color = TextMuted,
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center,
@@ -385,7 +406,7 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
                     .clickable {
                         if (!isFrozen && !exceedsLimit) {
                             purchaseBiometricApproved = true
-                            Toast.makeText(context, "Biometric matches BSB customer profile. Authorized!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Biometric matches Student 360 customer profile. Authorized!", Toast.LENGTH_SHORT).show()
                         } else {
                             Toast.makeText(context, "Cannot authorize: Transaction is currently blocked.", Toast.LENGTH_SHORT).show()
                         }
@@ -837,14 +858,14 @@ fun CompanionHeader(
     ) {
       Row(verticalAlignment = Alignment.CenterVertically) {
         Image(
-          painter = painterResource(id = R.drawable.bsb_companion_icon_1780844988616),
-          contentDescription = "BSB Companion Logo",
+          painter = painterResource(id = R.drawable.bsb),
+          contentDescription = "Student 360 Logo",
           modifier = Modifier.size(34.dp).clip(RoundedCornerShape(6.dp))
         )
         Spacer(modifier = Modifier.width(10.dp))
         Column {
           Text(
-            text = "BSB COMPANION",
+            text = "Student 360",
             color = TextPrimary,
             fontWeight = FontWeight.Black,
             fontSize = 16.sp,
@@ -869,24 +890,89 @@ fun CompanionHeader(
           onClick = onNotificationClick,
           modifier = Modifier.size(38.dp)
         ) {
-          BadgedBox(
-            badge = {
-              if (unreadCount > 0) {
-                Badge(
-                  containerColor = CoralOrange,
-                  contentColor = Color.White
-                ) {
-                  Text(unreadCount.toString(), fontSize = 9.sp)
-                }
+          BadgedBox(badge = {
+            if (unreadCount > 0) {
+              Badge(
+                containerColor = CoralOrange,
+                contentColor = Color.White
+              ) {
+                Text(unreadCount.toString(), fontSize = 9.sp)
               }
             }
-          ) {
+          }) {
             Icon(
               imageVector = Icons.Default.Notifications,
               contentDescription = "Notifications",
               tint = if (unreadCount > 0) CoralOrange else TextPrimary,
               modifier = Modifier.size(20.dp)
             )
+          }
+        }
+      }
+    }
+  }
+}
+@Composable
+fun OrbitAssistantDialog(userName: String?, onDismiss: () -> Unit) {
+  val transition = rememberInfiniteTransition()
+  val bob by transition.animateFloat(
+    initialValue = 0f,
+    targetValue = 6f,
+    animationSpec = infiniteRepeatable(animation = tween(900), repeatMode = androidx.compose.animation.core.RepeatMode.Reverse)
+  )
+  val blink by transition.animateFloat(
+    initialValue = 1f,
+    targetValue = 0f,
+    animationSpec = infiniteRepeatable(animation = tween(1200), repeatMode = androidx.compose.animation.core.RepeatMode.Reverse)
+  )
+
+  Dialog(onDismissRequest = onDismiss) {
+    Surface(
+      shape = RoundedCornerShape(12.dp),
+      color = NavySurface,
+      border = BorderStroke(1.dp, NavyPrimary),
+      modifier = Modifier.padding(12.dp)
+    ) {
+      Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        // Animated robot avatar
+        Box(
+          modifier = Modifier
+            .size(64.dp)
+            .offset(y = bob.dp)
+            .background(NavyPrimary, shape = CircleShape),
+          contentAlignment = Alignment.Center
+        ) {
+          Icon(
+            imageVector = Icons.Default.Face,
+            contentDescription = "Orbit",
+            tint = CoralOrange,
+            modifier = Modifier.size(34.dp)
+          )
+          // Eyes - blinking
+          Box(modifier = Modifier
+            .align(Alignment.Center)
+            .offset(x = (-8).dp, y = (-2).dp)) {
+            Canvas(modifier = Modifier.size(6.dp)) {
+              drawCircle(color = Color.White.copy(alpha = blink))
+            }
+          }
+          Box(modifier = Modifier
+            .align(Alignment.Center)
+            .offset(x = 8.dp, y = (-2).dp)) {
+            Canvas(modifier = Modifier.size(6.dp)) {
+              drawCircle(color = Color.White.copy(alpha = blink))
+            }
+          }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+          Text(text = "Hi ${'$'}{userName ?: \"there\"}, I'm Orbit.", color = TextPrimary, fontWeight = FontWeight.Black)
+          Text(text = "Your assistant in making financial decisions.", color = TextMuted, fontSize = 12.sp)
+          Spacer(modifier = Modifier.height(8.dp))
+          Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = onDismiss) { Text("Dismiss") }
           }
         }
       }
@@ -947,7 +1033,7 @@ fun AuthScreen(
       .fillMaxSize()
       .background(NavyBackground)
   ) {
-    // Aesthetic Top Wave Curved Header with Botswana Savings Bank (BSB) Branding
+    // Aesthetic Top Wave Curved Header with Student 360 Branding
     Box(
       modifier = Modifier
         .fillMaxWidth()
@@ -986,20 +1072,20 @@ fun AuthScreen(
         ) {
           Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
-              painter = painterResource(id = R.drawable.bsb_companion_icon_1780844988616),
-              contentDescription = "BSB Companion Logo",
+              painter = painterResource(id = R.drawable.bsb),
+              contentDescription = "Student 360 Logo",
               modifier = Modifier.size(46.dp).clip(RoundedCornerShape(8.dp))
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
               Text(
-                text = "BOTSWANA SAVINGS BANK",
+                text = "Student 360",
                 color = TextPrimary,
                 fontWeight = FontWeight.Black,
                 fontSize = 14.sp
               )
               Text(
-                text = "BSB Savings Companion • Secure Bank Access",
+                text = "Student 360 • Secure Access",
                 color = TextMuted,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.SemiBold
@@ -1010,7 +1096,7 @@ fun AuthScreen(
 
         Column {
           Text(
-            text = if (isRegisterTab) "Dumelang • Join BSB App" else "Dumelang • Welcome Back",
+            text = if (isRegisterTab) "Dumelang • Join Student 360" else "Dumelang • Welcome Back",
             color = TextPrimary,
             fontWeight = FontWeight.Black,
             fontSize = 24.sp,
@@ -1028,7 +1114,7 @@ fun AuthScreen(
       }
     }
 
-    // Tab Selector FNB style: full width matching BSB navy/orange
+    // Tab Selector FNB style: full width matching Student 360 navy/orange
     Row(
       modifier = Modifier
         .fillMaxWidth()
@@ -1465,14 +1551,14 @@ fun AuthScreen(
                 )
               }
               Text(
-                "FNB and BSB utilize mobile auth SMS verifications. Input an 8-digit Botswana mobile number.",
+                "FNB and Student 360 utilize mobile auth SMS verifications. Input an 8-digit Botswana mobile number.",
                 color = TextMuted,
                 fontSize = 9.sp
               )
             }
           }
 
-          // 3. BSB CARD LINKING
+          // 3. Student 360 CARD LINKING
           Card(
             colors = CardDefaults.cardColors(containerColor = NavySurface),
             shape = RoundedCornerShape(12.dp),
@@ -1483,7 +1569,7 @@ fun AuthScreen(
               verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
               Text(
-                "3. BSB Debit/Credit Card Mapping",
+                "3. Student 360 Debit/Credit Card Mapping",
                 color = CoralOrange,
                 fontWeight = FontWeight.Black,
                 fontSize = 11.sp
@@ -1705,7 +1791,7 @@ fun AuthScreen(
           verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
           Text(
-            text = "BSB Biometric Match",
+            text = "Student 360 Biometric Match",
             color = TextPrimary,
             fontWeight = FontWeight.Bold,
             fontSize = 16.sp
@@ -1792,7 +1878,8 @@ fun OverviewScreen(
   var transportAlloc by remember { mutableStateOf(250f) }
   var savingsAlloc by remember { mutableStateOf(250f) }
   var totalAllowanceLimit by remember { mutableStateOf(2200f) }
-  var isTotalPlannedLocked by remember { mutableStateOf(false) }
+  val prefs = LocalContext.current.getSharedPreferences("student360_prefs", android.content.Context.MODE_PRIVATE)
+  var isTotalPlannedLocked by remember { mutableStateOf(prefs.getBoolean("total_planned_locked", true)) }
 
   var foodAllocInput by remember(foodAlloc) { mutableStateOf(foodAlloc.toInt().toString()) }
   var rentAllocInput by remember(rentAlloc) { mutableStateOf(rentAlloc.toInt().toString()) }
@@ -2014,14 +2101,21 @@ fun OverviewScreen(
                   fontWeight = FontWeight.Black
                 )
                 IconButton(
-                  onClick = { isTotalPlannedLocked = !isTotalPlannedLocked },
-                  modifier = Modifier.size(28.dp)
+                  onClick = {
+                    val newVal = !isTotalPlannedLocked
+                    isTotalPlannedLocked = newVal
+                    prefs.edit().putBoolean("total_planned_locked", newVal).apply()
+                  },
+                  modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.12f) else Color.Transparent, CircleShape)
                 ) {
                   Icon(
                     imageVector = Icons.Default.Lock,
                     contentDescription = "Toggle Lock",
-                    tint = if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.8f) else BlueAccent,
-                    modifier = Modifier.size(16.dp)
+                    tint = if (isTotalPlannedLocked) Color.Red.copy(alpha = 0.9f) else BlueAccent,
+                    modifier = Modifier.size(18.dp)
                   )
                 }
               }
@@ -2422,7 +2516,7 @@ fun AutoPayScreen(
           )
           Spacer(modifier = Modifier.height(4.dp))
           Text(
-            text = "Connect BSB savings elements, then authorize mobile or savings subscriptions.",
+            text = "Connect Student 360 savings elements, then authorize mobile or savings subscriptions.",
             color = TextMuted,
             fontSize = 12.sp,
             textAlign = TextAlign.Center
@@ -2589,7 +2683,7 @@ fun AutoPayScreen(
             fontSize = 18.sp
           )
           Text(
-            text = "Automate bills natively using linked BSB wallets.",
+            text = "Automate bills natively using linked Student 360 wallets.",
             color = TextMuted,
             fontSize = 11.sp
           )
@@ -2637,7 +2731,7 @@ fun AutoPayScreen(
                         recNameText = "Gaborone Village Properties"
                         recAccountText = "9080012456"
                         recBranchNumberText = "120305"
-                        recBranchNameText = "BSB Main Gaborone"
+                        recBranchNameText = "Student 360 Main Gaborone"
                       }
                     }
                     .padding(vertical = 8.dp),
@@ -2939,7 +3033,7 @@ fun AutoPayScreen(
 
           // Account selection drop down list
           Column {
-            Text("BSB Debit Source Account", color = TextMuted, fontSize = 11.sp)
+            Text("Student 360 Debit Source Account", color = TextMuted, fontSize = 11.sp)
             Box {
               Button(
                 onClick = { accountDropdownExpanded = true },
@@ -3109,7 +3203,7 @@ fun AccountsScreen(
       verticalAlignment = Alignment.CenterVertically
     ) {
       Column {
-        Text("BSB Card & Wallet Vault", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text("Student 360 Card & Wallet Vault", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
         Text("Link savings accounts & authorization keys", color = TextMuted, fontSize = 12.sp)
       }
     }
@@ -3148,7 +3242,7 @@ fun AccountsScreen(
 
     // BSB BANK ACCOUNTS SECTION
     Text(
-      text = "Linked Botswana Savings Bank Accounts",
+      text = "Linked Accounts",
       color = TextPrimary,
       fontWeight = FontWeight.Bold,
       fontSize = 14.sp
@@ -3162,7 +3256,7 @@ fun AccountsScreen(
           .border(1.dp, NavyDistant, RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
       ) {
-        Text("No BSB accounts connected. Click Link Account.", color = TextMuted, fontSize = 12.sp)
+        Text("No Student 360 accounts connected. Click Link Account.", color = TextMuted, fontSize = 12.sp)
       }
     } else {
       accounts.forEach { acc ->
@@ -3251,7 +3345,7 @@ fun AccountsScreen(
           modifier = Modifier.padding(16.dp),
           verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-          Text("Connect BSB Account", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+          Text("Connect Student 360 Account", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
 
           OutlinedTextField(
             value = nameText,
@@ -3274,7 +3368,7 @@ fun AccountsScreen(
           OutlinedTextField(
             value = numberText,
             onValueChange = { numberText = it },
-            label = { Text("BSB Account Number") },
+            label = { Text("Student 360 Account Number") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = TextFieldDefaults.colors(
@@ -3355,7 +3449,7 @@ fun AccountsScreen(
           modifier = Modifier.padding(16.dp),
           verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-          Text("Connect BSB Debit Card", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+          Text("Connect Student 360 Debit Card", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
 
           OutlinedTextField(
             value = holderText,
@@ -4702,7 +4796,7 @@ fun ProfileScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Botswana Savings Bank (BSB) Savings Companion v4.2S • Licensed App Client",
+                    text = "Student 360 • Licensed App Client",
                     color = TextMuted,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold
