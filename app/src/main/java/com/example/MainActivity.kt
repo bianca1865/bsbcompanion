@@ -613,6 +613,26 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
             }
           }
         }
+
+        // Persistent Orbit chat bubble (bottom-right)
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
+          IconButton(
+            onClick = { showOrbitDialog = true },
+            modifier = Modifier
+              .padding(16.dp)
+              .size(56.dp)
+              .clip(CircleShape)
+              .background(CoralOrange)
+              .testTag("orbit_chat_bubble")
+          ) {
+            Icon(
+              imageVector = Icons.Default.Chat,
+              contentDescription = "Open Orbit Chat",
+              tint = NavyBackground,
+              modifier = Modifier.size(28.dp)
+            )
+          }
+        }
       }
     }
   }
