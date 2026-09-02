@@ -626,7 +626,7 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
               .testTag("orbit_chat_bubble")
           ) {
             Icon(
-              imageVector = Icons.Default.Android,
+              painter = painterResource(id = R.drawable.ic_robot),
               contentDescription = "Open Orbit Chat",
               tint = NavyBackground,
               modifier = Modifier.size(28.dp)
