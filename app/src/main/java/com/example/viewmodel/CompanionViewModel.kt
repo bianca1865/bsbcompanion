@@ -250,7 +250,17 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                 cardExpiry = cardExpiry.trim(),
                 cardCvvOrPin = cardCvvOrPin,
                 passwordHash = passwordHash,
-                biometricsEnabled = biometricsEnabled
+                biometricsEnabled = biometricsEnabled,
+                // New user: no preset allocations, total allowance P2200
+                foodAlloc = 0.0,
+                rentAlloc = 0.0,
+                transportAlloc = 0.0,
+                savingsAlloc = 0.0,
+                wifiAlloc = 0.0,
+                mobileAlloc = 0.0,
+                totalAllowanceLimit = 2200.0,
+                // no visible categories by default
+                visibleCategories = ""
             )
             repository.registerUser(user)
             _loggedInUser.value = user
@@ -260,7 +270,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                 BSBAccount(
                     accountName = "Student 360 Ordinary Savings",
                     accountNumber = "1024" + (1000000..9999999).random().toString(),
-                    balance = 7500.00
+                    balance = 2200.00
                 )
             ).toInt()
 

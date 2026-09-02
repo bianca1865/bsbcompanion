@@ -626,7 +626,7 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
               .testTag("orbit_chat_bubble")
           ) {
             Icon(
-              imageVector = Icons.Default.Person,
+              imageVector = Icons.Default.Android,
               contentDescription = "Open Orbit Chat",
               tint = NavyBackground,
               modifier = Modifier.size(28.dp)
@@ -1897,11 +1897,11 @@ fun OverviewScreen(
   val transportLimit = loggedInUser?.transportMaxLimit?.toFloat() ?: 1000f
   val savingsLimit = loggedInUser?.savingsMaxLimit?.toFloat() ?: 2000f
 
-  var foodAlloc by remember { mutableStateOf(1000f) }
-  var rentAlloc by remember { mutableStateOf(700f) }
-  var transportAlloc by remember { mutableStateOf(250f) }
-  var savingsAlloc by remember { mutableStateOf(250f) }
-  var totalAllowanceLimit by remember { mutableStateOf(2200f) }
+  var foodAlloc by remember(loggedInUser) { mutableStateOf((loggedInUser?.foodAlloc?.toFloat() ?: 0f)) }
+  var rentAlloc by remember(loggedInUser) { mutableStateOf((loggedInUser?.rentAlloc?.toFloat() ?: 0f)) }
+  var transportAlloc by remember(loggedInUser) { mutableStateOf((loggedInUser?.transportAlloc?.toFloat() ?: 0f)) }
+  var savingsAlloc by remember(loggedInUser) { mutableStateOf((loggedInUser?.savingsAlloc?.toFloat() ?: 0f)) }
+  var totalAllowanceLimit by remember(loggedInUser) { mutableStateOf((loggedInUser?.totalAllowanceLimit?.toFloat() ?: 2200f)) }
   val prefs = LocalContext.current.getSharedPreferences("student360_prefs", android.content.Context.MODE_PRIVATE)
   var isTotalPlannedLocked by remember { mutableStateOf(prefs.getBoolean("total_planned_locked", true)) }
 
