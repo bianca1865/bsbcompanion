@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "bsbcompanion"
+rootProject.name = "Student360"
 
 include(":app")

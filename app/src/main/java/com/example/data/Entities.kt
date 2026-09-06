@@ -35,7 +35,7 @@ data class BSBCard(
 @Entity(tableName = "scheduled_payments")
 data class ScheduledPayment(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val paymentType: String, // "Savings Account", "Wifi", "Mobile Subscription", "Rent", "Other"
+    val paymentType: String, // "Savings Account", "Wifi", "Mobile Subscription", "Other"
     val payeeName: String,   // e.g. "BTC Broadband", "Mascom Online", "Netflix", "Education Savings"
     val amount: Double,
     val paymentDay: Int,     // 1 - 31
@@ -84,21 +84,8 @@ data class RegisteredUser(
     val contactlessEnabled: Boolean = true,
     val statementFrequency: String = "Monthly",
     val isDarkMode: Boolean = true,
-    // Allocator Bounds (Max Limits)
     val foodMaxLimit: Double = 1500.0,
     val rentMaxLimit: Double = 3000.0,
     val transportMaxLimit: Double = 1000.0,
-    val savingsMaxLimit: Double = 2000.0,
-    val wifiMaxLimit: Double = 1000.0,
-    val mobileMaxLimit: Double = 1000.0,
-    // Current Allocations (Persistent State)
-    val foodAlloc: Double = 1000.0,
-    val rentAlloc: Double = 700.0,
-    val transportAlloc: Double = 250.0,
-    val savingsAlloc: Double = 250.0,
-    val wifiAlloc: Double = 0.0,
-    val mobileAlloc: Double = 0.0,
-    val totalAllowanceLimit: Double = 2200.0,
-    // Visible Components in Allocator (Comma separated categories)
-    val visibleCategories: String = "Groceries,Rent,Transport,Savings"
+    val savingsMaxLimit: Double = 2000.0
 )

@@ -63,6 +63,280 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     private val _paymentExecutionEvent = MutableSharedFlow<String>(replay = 0)
     val paymentExecutionEvent: SharedFlow<String> = _paymentExecutionEvent.asSharedFlow()
 
+    // Student360 BSB Service Layer
+    val studentService: BsbStudentService = BsbStudentServiceImpl(repository)
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val financialSummary: StateFlow<FinancialSummary> = _simulatedDay
+        .flatMapLatest { day -> studentService.getFinancialSummary(day) }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            FinancialSummary(
+                monthlyAllowance = 2200.0,
+                totalSpent = 408.50,
+                totalCommitted = 448.0,
+                totalSavings = 200.0,
+                remainingFreeToSpend = 1143.50,
+                daysRemainingInCycle = 15,
+                safeDailySpend = 76.23,
+                pacingStatus = PacingStatus.ON_PACE,
+                healthScore = 84,
+                healthGrade = "Healthy Pacing",
+                healthAdvice = "Allowance is pacing sustainably for the remaining days."
+            )
+        )
+
+    val categorySpends: StateFlow<List<CategorySpendItem>> = studentService.getCategorySpends()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val committedBills: StateFlow<List<CommittedBillItem>> = _simulatedDay
+        .flatMapLatest { day -> studentService.getCommittedBills(day) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val aiInsights: StateFlow<List<FinancialInsight>> = _simulatedDay
+        .flatMapLatest { day -> studentService.getAiInsights(day) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val studentProfile: StateFlow<StudentProfile> = studentService.getStudentProfile()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StudentProfile())
+
+    fun logStudentExpense(title: String, amount: Double, category: String) {
+        viewModelScope.launch {
+            studentService.logQuickExpense(title, amount, category)
+            _paymentExecutionEvent.emit("Logged expense: $title (-P${String.format("%.2f", amount)})")
+        }
+    }
+
+    fun simulatePaydayDeposit(amount: Double = 2200.0) {
+        viewModelScope.launch {
+            studentService.simulateAllowanceDeposit(amount)
+            _paymentExecutionEvent.emit("DTEF Allowance Credited (+P${String.format("%.2f", amount)})")
+        }
+    }
+
+    private val _roundUpSavingsEnabled = MutableStateFlow(true)
+    val roundUpSavingsEnabled: StateFlow<Boolean> = _roundUpSavingsEnabled.asStateFlow()
+
+    fun toggleRoundUpSavings() {
+        _roundUpSavingsEnabled.value = !_roundUpSavingsEnabled.value
+        viewModelScope.launch {
+            val status = if (_roundUpSavingsEnabled.value) "enabled" else "paused"
+            _paymentExecutionEvent.emit("BSB Smart Round-Up Savings $status.")
+        }
+    }
+
+    fun toggleBillRingFence(billId: Int, isCurrentlyRingFenced: Boolean) {
+        viewModelScope.launch {
+            studentService.setRingFenced(billId, !isCurrentlyRingFenced)
+            val msg = if (!isCurrentlyRingFenced) "Obligation ring-fenced & protected." else "Obligation protection released."
+            _paymentExecutionEvent.emit(msg)
+        }
+    }
+
+    fun addCommittedBill(title: String, amount: Double, dueDay: Int, category: String) {
+        viewModelScope.launch {
+            studentService.addCommittedBill(title, amount, dueDay, category)
+            _paymentExecutionEvent.emit("Added obligation: $title (P${String.format("%.2f", amount)})")
+        }
+    }
+
+    fun settleBillNow(billId: Int) {
+        viewModelScope.launch {
+            studentService.settleBillNow(billId)
+            _paymentExecutionEvent.emit("Committed bill executed and paid successfully!")
+        }
+    }
+
+    fun transferToSesameSavings(amount: Double) {
+        viewModelScope.launch {
+            studentService.transferToSavings(amount)
+            _paymentExecutionEvent.emit("Saved P${String.format("%.2f", amount)} into BSB Sesame Savings!")
+        }
+    }
+
+    fun rebalanceCategoryBudget(categoryName: String, newBudget: Double) {
+        viewModelScope.launch {
+            studentService.rebalanceCategoryBudget(categoryName, newBudget)
+            _paymentExecutionEvent.emit("$categoryName envelope updated to P${String.format("%.2f", newBudget)}")
+        }
+    }
+
+    fun deleteExpenseItem(expense: ExpenseItem) {
+        viewModelScope.launch {
+            repository.deleteExpense(expense)
+            _paymentExecutionEvent.emit("Removed expense: ${expense.title}")
+        }
+    }
+
+    // PRIORITY 8: Savings Goals State
+    private val _savingsGoals = MutableStateFlow(
+        listOf(
+            StudentSavingsGoal("g1", "Laptop for CompSci", 3500.0, 1250.0, "💻", "Dec 2026"),
+            StudentSavingsGoal("g2", "Emergency Cushion", 1000.0, 500.0, "🛡️", "Nov 2026"),
+            StudentSavingsGoal("g3", "Semester Textbooks", 600.0, 420.0, "📚", "Oct 2026"),
+            StudentSavingsGoal("g4", "Graduation Attire", 1200.0, 300.0, "🎓", "May 2027")
+        )
+    )
+    val savingsGoals: StateFlow<List<StudentSavingsGoal>> = _savingsGoals.asStateFlow()
+
+    fun depositToSavingsGoal(goalId: String, amount: Double) {
+        viewModelScope.launch {
+            _savingsGoals.update { goals ->
+                goals.map { goal ->
+                    if (goal.id == goalId) {
+                        goal.copy(currentAmount = (goal.currentAmount + amount).coerceAtMost(goal.targetAmount))
+                    } else goal
+                }
+            }
+            studentService.transferToSavings(amount)
+            val goalTitle = _savingsGoals.value.find { it.id == goalId }?.title ?: "Goal"
+            _paymentExecutionEvent.emit("Deposited P${String.format("%.2f", amount)} into $goalTitle!")
+            repository.addNotification("Savings Goal Boosted", "Transferred P${String.format("%.2f", amount)} from allowance into '$goalTitle' (Sesame Savings).")
+        }
+    }
+
+    fun addSavingsGoal(title: String, targetAmount: Double, iconEmoji: String, targetMonth: String) {
+        val newGoal = StudentSavingsGoal(
+            id = "g_${System.currentTimeMillis()}",
+            title = title,
+            targetAmount = targetAmount,
+            currentAmount = 0.0,
+            iconEmoji = iconEmoji,
+            targetMonth = targetMonth
+        )
+        _savingsGoals.update { it + newGoal }
+        viewModelScope.launch {
+            _paymentExecutionEvent.emit("Created new savings goal: $title (Target: P${String.format("%.0f", targetAmount)})")
+        }
+    }
+
+    // PRIORITY 2: Statement Batch Import
+    fun batchImportStatementTransactions(transactions: List<StatementTransaction>) {
+        viewModelScope.launch {
+            val selected = transactions.filter { it.isSelected }
+            if (selected.isEmpty()) return@launch
+
+            var importedCount = 0
+            var totalExpenseImported = 0.0
+
+            selected.forEach { tx ->
+                if (!tx.isCredit) {
+                    repository.addExpense(
+                        ExpenseItem(
+                            title = tx.description,
+                            amount = tx.amount,
+                            category = tx.category,
+                            timestamp = System.currentTimeMillis()
+                        )
+                    )
+                    totalExpenseImported += tx.amount
+                    importedCount++
+                }
+            }
+
+            repository.addNotification(
+                "Statement Imported",
+                "Successfully imported $importedCount transactions from statement totaling -P${String.format("%.2f", totalExpenseImported)}."
+            )
+            _paymentExecutionEvent.emit("Imported $importedCount statement transactions into BSB records!")
+        }
+    }
+
+    // PRIORITY 3: Physical Receipt OCR Import
+    fun importOcrReceipt(receipt: ScannedOcrReceipt) {
+        viewModelScope.launch {
+            repository.addExpense(
+                ExpenseItem(
+                    title = "${receipt.merchant} (OCR Scanned)",
+                    amount = receipt.totalAmount,
+                    category = receipt.category,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+            repository.addNotification(
+                "Receipt Scanned & Verified",
+                "OCR captured P${String.format("%.2f", receipt.totalAmount)} at ${receipt.merchant}. Categorized under ${receipt.category}."
+            )
+            _paymentExecutionEvent.emit("Receipt from ${receipt.merchant} verified and added to expenses!")
+        }
+    }
+
+    // PRIORITY 4: P2,200 Allowance Allocator Application
+    fun applyFullAllowanceAllocation(preset: AllowanceAllocationPreset) {
+        viewModelScope.launch {
+            studentService.rebalanceCategoryBudget("Rent & Accommodation", preset.rent)
+            studentService.rebalanceCategoryBudget("Food & Meals", preset.food)
+            studentService.rebalanceCategoryBudget("Transport & Kombi", preset.transport)
+            studentService.rebalanceCategoryBudget("Study Materials", preset.study)
+            studentService.rebalanceCategoryBudget("Savings Reserve", preset.savings)
+
+            repository.addNotification(
+                "Allowance Allocator Applied",
+                "Applied '${preset.name}' P2,200 plan: Food P${preset.food.toInt()}, Rent P${preset.rent.toInt()}, Transport P${preset.transport.toInt()}, Study P${preset.study.toInt()}, Savings P${preset.savings.toInt()}."
+            )
+            _paymentExecutionEvent.emit("Locked P2,200 '${preset.name}' budget envelopes!")
+        }
+    }
+
+    // PRIORITY 6: Trigger Simulated Local Notification
+    fun simulateNotificationAlert(title: String, message: String) {
+        viewModelScope.launch {
+            repository.addNotification(title, message)
+            _paymentExecutionEvent.emit("🔔 Alert: $title")
+        }
+    }
+
+    // PRIORITY 7: Execute BSB Payment Flow
+    fun executeBsbPayment(
+        payeeName: String,
+        amount: Double,
+        reference: String,
+        category: String,
+        tokenCode: String? = null,
+        onSuccess: (BsbPaymentReceipt) -> Unit
+    ) {
+        viewModelScope.launch {
+            val allAccounts = repository.accounts.first()
+            val primaryAcc = allAccounts.find { it.accountName.contains("Allowance", ignoreCase = true) }
+                ?: allAccounts.firstOrNull()
+
+            if (primaryAcc != null) {
+                val newBal = (primaryAcc.balance - amount).coerceAtLeast(0.0)
+                repository.updateAccount(primaryAcc.copy(balance = newBal))
+            }
+
+            repository.addExpense(
+                ExpenseItem(
+                    title = "BSB Pay: $payeeName",
+                    amount = amount,
+                    category = category,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+
+            val refNumber = "BSB-${(100000..999999).random()}-${System.currentTimeMillis().toString().takeLast(4)}"
+            val receipt = BsbPaymentReceipt(
+                referenceNumber = refNumber,
+                payeeName = payeeName,
+                amount = amount,
+                fromAccount = primaryAcc?.accountNumber ?: "10243950621",
+                timestamp = System.currentTimeMillis(),
+                tokenCode = tokenCode,
+                fee = 0.00
+            )
+
+            repository.addNotification(
+                "BSB Payment Successful",
+                "Paid P${String.format("%.2f", amount)} to $payeeName (Ref: $refNumber). ${if (tokenCode != null) "Token: $tokenCode" else ""}"
+            )
+            _paymentExecutionEvent.emit("Payment to $payeeName successful! Ref: $refNumber")
+            onSuccess(receipt)
+        }
+    }
+
     init {
         viewModelScope.launch {
             repository.seedDatabaseIfEmpty()
@@ -88,8 +362,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         rentMaxLimit: Double = 3000.0,
         transportMaxLimit: Double = 1000.0,
         savingsMaxLimit: Double = 2000.0,
-        wifiMaxLimit: Double = 1000.0,
-        mobileMaxLimit: Double = 1000.0,
         onComplete: () -> Unit
     ) {
         viewModelScope.launch {
@@ -108,76 +380,12 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     foodMaxLimit = foodMaxLimit,
                     rentMaxLimit = rentMaxLimit,
                     transportMaxLimit = transportMaxLimit,
-                    savingsMaxLimit = savingsMaxLimit,
-                    wifiMaxLimit = wifiMaxLimit,
-                    mobileMaxLimit = mobileMaxLimit
+                    savingsMaxLimit = savingsMaxLimit
                 )
                 repository.registerUser(updated)
                 _loggedInUser.value = updated
             }
             onComplete()
-        }
-    }
-
-    fun updateAllocations(
-        food: Double? = null,
-        rent: Double? = null,
-        transport: Double? = null,
-        savings: Double? = null,
-        wifi: Double? = null,
-        mobile: Double? = null,
-        total: Double? = null
-    ) {
-        viewModelScope.launch {
-            val current = _loggedInUser.value ?: return@launch
-            val updated = current.copy(
-                foodAlloc = food ?: current.foodAlloc,
-                rentAlloc = rent ?: current.rentAlloc,
-                transportAlloc = transport ?: current.transportAlloc,
-                savingsAlloc = savings ?: current.savingsAlloc,
-                wifiAlloc = wifi ?: current.wifiAlloc,
-                mobileAlloc = mobile ?: current.mobileAlloc,
-                totalAllowanceLimit = total ?: current.totalAllowanceLimit
-            )
-            repository.registerUser(updated)
-            _loggedInUser.value = updated
-
-            // SYNC: If Rent in allocator changes, update the Rent Auto-Pay if it exists
-            if (rent != null) {
-                val rentPayment = payments.value.find { it.paymentType == "Rent" }
-                if (rentPayment != null && rentPayment.amount != rent) {
-                    repository.updatePayment(rentPayment.copy(amount = rent))
-                }
-            }
-            
-            if (wifi != null) {
-                val wifiPayment = payments.value.find { it.paymentType == "Wifi" }
-                if (wifiPayment != null && wifiPayment.amount != wifi) {
-                    repository.updatePayment(wifiPayment.copy(amount = wifi))
-                }
-            }
-            
-            if (mobile != null) {
-                val mobilePayment = payments.value.find { it.paymentType == "Mobile Subscription" }
-                if (mobilePayment != null && mobilePayment.amount != mobile) {
-                    repository.updatePayment(mobilePayment.copy(amount = mobile))
-                }
-            }
-        }
-    }
-
-    fun toggleCategoryVisibility(category: String) {
-        viewModelScope.launch {
-            val current = _loggedInUser.value ?: return@launch
-            val categories = current.visibleCategories.split(",").map { it.trim() }.toMutableList()
-            if (categories.contains(category)) {
-                categories.remove(category)
-            } else {
-                categories.add(category)
-            }
-            val updated = current.copy(visibleCategories = categories.filter { it.isNotBlank() }.joinToString(","))
-            repository.registerUser(updated)
-            _loggedInUser.value = updated
         }
     }
 
@@ -328,33 +536,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                     recipientName = recipientNm
                 )
             )
-
-            // SYNC: Update Allocator if adding certain Auto-Pays
-            val current = _loggedInUser.value ?: return@launch
-            var updated = when (type) {
-                "Rent" -> current.copy(rentAlloc = amount)
-                "Wifi" -> current.copy(wifiAlloc = amount)
-                "Mobile Subscription" -> current.copy(mobileAlloc = amount)
-                else -> current
-            }
-            
-            // Auto-add to visible categories to avoid confusion
-            val cats = updated.visibleCategories.split(",").map { it.trim() }.toMutableList()
-            val catToAdd = when(type) {
-                "Rent" -> "Rent"
-                "Wifi" -> "Wifi"
-                "Mobile Subscription" -> "Mobile"
-                else -> null
-            }
-            if (catToAdd != null && !cats.contains(catToAdd)) {
-                cats.add(catToAdd)
-                updated = updated.copy(visibleCategories = cats.filter { it.isNotBlank() }.joinToString(","))
-            }
-
-            if (updated != current) {
-                repository.registerUser(updated)
-                _loggedInUser.value = updated
-            }
         }
     }
 
