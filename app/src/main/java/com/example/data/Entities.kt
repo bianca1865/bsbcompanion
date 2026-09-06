@@ -40,7 +40,8 @@ data class ScheduledPayment(
     val amount: Double,
     val paymentDay: Int,     // 1 - 31
     val lastPaymentDate: Long? = null, // timestamp
-    val selectedAccountId: Int, // Paid from this Student 360 account
+    // selectedAccountId is now optional — the app no longer requires a linked Student 360 account to log/pay reminders
+    val selectedAccountId: Int? = null,
     val selectedCardId: Int? = null, // Optionally linked card
     val isActive: Boolean = true,
     val recipientAccount: String? = null,

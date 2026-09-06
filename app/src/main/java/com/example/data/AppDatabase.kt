@@ -6,6 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import net.sqlcipher.database.SQLiteDatabase
 import net.sqlcipher.database.SupportFactory
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -30,6 +32,41 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        // Migration: 6 -> 7 preserves existing scheduled_payments while making selectedAccountId nullable
+        private val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create new table with the desired schema (selectedAccountId INTEGER NULL)
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS `scheduled_payments_new` (
+                      `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                      `paymentType` TEXT NOT NULL,
+                      `payeeName` TEXT NOT NULL,
+                      `amount` REAL NOT NULL,
+                      `paymentDay` INTEGER NOT NULL,
+                      `lastPaymentDate` INTEGER,
+                      `selectedAccountId` INTEGER,
+                      `selectedCardId` INTEGER,
+                      `isActive` INTEGER NOT NULL,
+                      `recipientAccount` TEXT,
+                      `recipientBranchNumber` TEXT,
+                      `recipientBranchName` TEXT,
+                      `recipientName` TEXT
+                    )""".trimIndent())
+
+                // Copy existing data into the new table (works whether or not selectedAccountId existed previously)
+                database.execSQL("""
+                    INSERT INTO `scheduled_payments_new` (`id`,`paymentType`,`payeeName`,`amount`,`paymentDay`,`lastPaymentDate`,`selectedAccountId`,`selectedCardId`,`isActive`,`recipientAccount`,`recipientBranchNumber`,`recipientBranchName`,`recipientName`)
+                    SELECT `id`,`paymentType`,`payeeName`,`amount`,`paymentDay`,`lastPaymentDate`,
+                           CASE WHEN typeof(`selectedAccountId`) = 'integer' THEN `selectedAccountId` ELSE NULL END,
+                           `selectedCardId`,`isActive`,`recipientAccount`,`recipientBranchNumber`,`recipientBranchName`,`recipientName`
+                    FROM `scheduled_payments`""".trimIndent())
+
+                // Drop old table and rename new one
+                database.execSQL("DROP TABLE IF EXISTS `scheduled_payments`")
+                database.execSQL("ALTER TABLE `scheduled_payments_new` RENAME TO `scheduled_payments`")
+            }
+        }
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -56,7 +93,7 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "bsb_companion_db"
-                ).fallbackToDestructiveMigration()
+                ).addMigrations(MIGRATION_6_7).fallbackToDestructiveMigration()
 
                 if (factory != null) {
                     builder.openHelperFactory(factory)

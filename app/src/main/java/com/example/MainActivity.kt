@@ -263,23 +263,58 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
 
   // Orbit assistant intro persistence
   val prefsMain = context.getSharedPreferences("student360_prefs", android.content.Context.MODE_PRIVATE)
-  var showOrbitDialog by remember { mutableStateOf(isLoggedIn && !prefsMain.getBoolean("seen_orbit_intro", false)) }
-  LaunchedEffect(isLoggedIn) {
-    if (isLoggedIn && !prefsMain.getBoolean("seen_orbit_intro", false)) {
-      showOrbitDialog = true
-    }
-  }
+  // Show Orbit intro if user hasn't dismissed before (do not require login)
+  var showOrbitDialog by remember { mutableStateOf(!prefsMain.getBoolean("seen_orbit_intro", false)) }
+
 
   var selectedTab by remember { mutableStateOf(NavigationTab.OVERVIEW) }
 
+  // In-memory chat conversation state (persists while app runs)
+  val chatMessages = remember { mutableStateListOf<Pair<String, String>>() }
+
   // Show Orbit intro dialog if not seen
   if (showOrbitDialog) {
-    OrbitAssistantDialog(userName = loggedInUser?.fullName?.split(" ")?.firstOrNull()) {
-      prefsMain.edit().putBoolean("seen_orbit_intro", true).apply()
-      showOrbitDialog = false
-    }
+    val firstName = loggedInUser?.fullName?.split(" ")?.firstOrNull()
+
+    OrbitAssistantDialog(
+      userName = firstName,
+      messages = chatMessages,
+      onDismiss = {
+        prefsMain.edit().putBoolean("seen_orbit_intro", true).apply()
+        showOrbitDialog = false
+      },
+      onSend = { msg ->
+        // add user message and a canned assistant reply
+        chatMessages.add("You" to msg)
+        scope.launch {
+          kotlinx.coroutines.delay(700)
+          val reply = "Thanks " + (firstName ?: "there") + ". I received: $msg"
+          chatMessages.add("Orbit" to reply)
+        }
+      }
+    )
   }
-  var showNotificationsOverlay by remember { mutableStateOf(false) }
+          // Persistent Orbit chat bubble (bottom-right) - visible on login and in-app
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
+          IconButton(
+            onClick = { showOrbitDialog = true },
+            modifier = Modifier
+              .padding(16.dp)
+              .size(56.dp)
+              .clip(CircleShape)
+              .background(CoralOrange)
+              .testTag("orbit_chat_bubble")
+          ) {
+            Icon(
+              painter = painterResource(id = R.drawable.ic_robot),
+              contentDescription = "Open Orbit Chat",
+              tint = NavyBackground,
+              modifier = Modifier.size(28.dp)
+            )
+          }
+        }
+
+        var showNotificationsOverlay by remember { mutableStateOf(false) }
   var purchaseBiometricApproved by remember { mutableStateOf(false) }
 
   var selectedAccountId by remember(accounts) {
@@ -519,11 +554,6 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
     )
   }
 
-  if (!isLoggedIn) {
-    AuthScreen(viewModel = viewModel) {
-      // Login success callback triggers auto recompose of main view
-    }
-  } else {
     Scaffold(
       snackbarHost = { SnackbarHost(snackbarHostState) },
       bottomBar = {
@@ -614,28 +644,8 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
           }
         }
 
-        // Persistent Orbit chat bubble (bottom-right)
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
-          IconButton(
-            onClick = { showOrbitDialog = true },
-            modifier = Modifier
-              .padding(16.dp)
-              .size(56.dp)
-              .clip(CircleShape)
-              .background(CoralOrange)
-              .testTag("orbit_chat_bubble")
-          ) {
-            Icon(
-              painter = painterResource(id = R.drawable.ic_robot),
-              contentDescription = "Open Orbit Chat",
-              tint = NavyBackground,
-              modifier = Modifier.size(28.dp)
-            )
-          }
-        }
       }
     }
-  }
 
   // Custom Notifications Dialog Overlay (Bell icon at the top)
   if (showNotificationsOverlay) {
@@ -934,7 +944,7 @@ fun CompanionHeader(
   }
 }
 @Composable
-fun OrbitAssistantDialog(userName: String?, onDismiss: () -> Unit) {
+fun OrbitAssistantDialog(userName: String?, messages: List<Pair<String, String>>, onDismiss: () -> Unit, onSend: (String) -> Unit) {
   val transition = rememberInfiniteTransition()
   val bob by transition.animateFloat(
     initialValue = 0f,
@@ -953,48 +963,99 @@ fun OrbitAssistantDialog(userName: String?, onDismiss: () -> Unit) {
         shape = RoundedCornerShape(12.dp),
         color = NavySurface,
         border = BorderStroke(1.dp, NavyPrimary),
-        modifier = Modifier.widthIn(max = 320.dp)
+        modifier = Modifier.widthIn(max = 360.dp)
       ) {
-        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-          // Animated robot avatar
-          Box(
-            modifier = Modifier
-              .size(56.dp)
-              .offset(y = bob.dp)
-              .background(NavyPrimary, shape = CircleShape),
-            contentAlignment = Alignment.Center
-          ) {
-            Icon(
-              imageVector = Icons.Default.Face,
-              contentDescription = "Orbit",
-              tint = CoralOrange,
-              modifier = Modifier.size(30.dp)
-            )
-            // Eyes - blinking
-            Box(modifier = Modifier
-              .align(Alignment.Center)
-              .offset(x = (-6).dp, y = (-2).dp)) {
-              Canvas(modifier = Modifier.size(5.dp)) {
-                drawCircle(color = Color.White.copy(alpha = blink))
+        Column(modifier = Modifier.padding(12.dp)) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+              modifier = Modifier
+                .size(56.dp)
+                .offset(y = bob.dp)
+                .background(NavyPrimary, shape = CircleShape),
+              contentAlignment = Alignment.Center
+            ) {
+              Icon(
+                imageVector = Icons.Default.Face,
+                contentDescription = "Orbit",
+                tint = CoralOrange,
+                modifier = Modifier.size(30.dp)
+              )
+              Box(modifier = Modifier
+                .align(Alignment.Center)
+                .offset(x = (-6).dp, y = (-2).dp)) {
+                Canvas(modifier = Modifier.size(5.dp)) { drawCircle(color = Color.White.copy(alpha = blink)) }
+              }
+              Box(modifier = Modifier
+                .align(Alignment.Center)
+                .offset(x = 6.dp, y = (-2).dp)) {
+                Canvas(modifier = Modifier.size(5.dp)) { drawCircle(color = Color.White.copy(alpha = blink)) }
               }
             }
-            Box(modifier = Modifier
-              .align(Alignment.Center)
-              .offset(x = 6.dp, y = (-2).dp)) {
-              Canvas(modifier = Modifier.size(5.dp)) {
-                drawCircle(color = Color.White.copy(alpha = blink))
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+              Text(text = "Hi " + (userName ?: "there") + ", I'm Orbit.", color = TextPrimary, fontWeight = FontWeight.Black)
+              Text(text = "Your assistant in making financial decisions.", color = TextMuted, fontSize = 12.sp)
+            }
+
+            IconButton(onClick = onDismiss) {
+              Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = TextMuted)
+            }
+          }
+
+          Spacer(modifier = Modifier.height(8.dp))
+
+          // Messages list
+          Box(modifier = Modifier
+            .heightIn(min = 100.dp, max = 260.dp)
+            .fillMaxWidth()) {
+            if (messages.isEmpty()) {
+              Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text("No messages yet. Say hi to Orbit!", color = TextMuted, fontSize = 12.sp)
+              }
+            } else {
+              LazyColumn(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(messages) { msg ->
+                  val (sender, text) = msg
+                  Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (sender == "You") Arrangement.End else Arrangement.Start) {
+                    Card(
+                      colors = CardDefaults.cardColors(containerColor = if (sender == "You") CoralOrange else NavyPrimary),
+                      shape = RoundedCornerShape(10.dp),
+                      modifier = Modifier.widthIn(max = 260.dp)
+                    ) {
+                      Column(modifier = Modifier.padding(8.dp)) {
+                        Text(text = text, color = if (sender == "You") Color.White else TextPrimary, fontSize = 13.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = sender, color = TextMuted, fontSize = 9.sp)
+                      }
+                    }
+                  }
+                }
               }
             }
           }
 
-          Spacer(modifier = Modifier.width(8.dp))
+          Spacer(modifier = Modifier.height(8.dp))
 
-          Column(modifier = Modifier.weight(1f)) {
-            Text(text = "Hi ${'$'}{userName ?: \"there\"}, I'm Orbit.", color = TextPrimary, fontWeight = FontWeight.Black)
-            Text(text = "Your assistant in making financial decisions.", color = TextMuted, fontSize = 12.sp)
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-              TextButton(onClick = onDismiss) { Text("Dismiss") }
+          // Composer
+          var composerText by remember { mutableStateOf("") }
+          Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+              value = composerText,
+              onValueChange = { composerText = it },
+              placeholder = { Text("Type a message") },
+              modifier = Modifier.weight(1f),
+              singleLine = true
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(onClick = {
+              if (composerText.isNotBlank()) {
+                onSend(composerText)
+                composerText = ""
+              }
+            }, colors = ButtonDefaults.buttonColors(containerColor = CoralOrange)) {
+              Text("Send", color = NavyBackground)
             }
           }
         }
@@ -1012,7 +1073,7 @@ fun AuthScreen(
   val context = LocalContext.current
   val registeredUsers by viewModel.registeredUsers.collectAsStateWithLifecycle()
 
-  var isRegisterTab by remember(registeredUsers) { mutableStateOf(registeredUsers.isEmpty()) }
+  var isRegisterTab by remember { mutableStateOf(false) }
 
   // Login Inputs state (Prefill email if user registered)
   val defaultEmail = registeredUsers.firstOrNull()?.email ?: ""
@@ -1023,10 +1084,6 @@ fun AuthScreen(
   // Register Inputs state
   var regFullName by remember { mutableStateOf("") }
   var regEmail by remember { mutableStateOf("") }
-  var regCellphone by remember { mutableStateOf("") }
-  var regCardNumber by remember { mutableStateOf("") }
-  var regCardExpiry by remember { mutableStateOf("") }
-  var regCardCvvOrPin by remember { mutableStateOf("") }
   var regPassword by remember { mutableStateOf("") }
   var regConfirmPassword by remember { mutableStateOf("") }
   var regBiometricsEnabled by remember { mutableStateOf(true) }
@@ -1256,58 +1313,13 @@ fun AuthScreen(
         ) {
           Spacer(modifier = Modifier.height(8.dp))
 
-          if (registeredUsers.isNotEmpty()) {
-            val primaryUser = registeredUsers.first()
-            Card(
-              colors = CardDefaults.cardColors(containerColor = NavySurface),
-              shape = RoundedCornerShape(14.dp),
-              border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
-              modifier = Modifier.fillMaxWidth()
-            ) {
-              Row(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-              ) {
-                Box(
-                  modifier = Modifier
-                    .size(46.dp)
-                    .background(CoralOrange, CircleShape),
-                  contentAlignment = Alignment.Center
-                ) {
-                  Text(
-                    text = primaryUser.fullName.firstOrNull()?.toString()?.uppercase() ?: "U",
-                    color = NavyBackground,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 18.sp
-                  )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                  Text(text = "Logged Registered Profile:", color = TextMuted, fontSize = 10.sp)
-                  Text(
-                    text = primaryUser.fullName,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                  )
-                  Text(
-                    text = "Botswana Mobile: +267 ${primaryUser.cellphone}",
-                    color = TextMuted,
-                    fontSize = 11.sp
-                  )
-                }
-              }
-            }
-          }
 
           // Username / Email input
           OutlinedTextField(
             value = loginEmail,
             onValueChange = { loginEmail = it },
             label = { Text("Registered Email Address") },
-            placeholder = { Text("e.g. masego@gmail.com") },
+            placeholder = { Text("e.g. your@email.com") },
             leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email", tint = TextMuted) },
             modifier = Modifier
               .fillMaxWidth()
@@ -1416,43 +1428,15 @@ fun AuthScreen(
 
           Spacer(modifier = Modifier.height(8.dp))
 
-          // Quick Demo Bypass
-          Surface(
-            modifier = Modifier
-              .fillMaxWidth()
-              .clip(RoundedCornerShape(12.dp))
-              .clickable {
-                if (registeredUsers.isEmpty()) {
-                  viewModel.registerCustomer(
-                    email = "masego@gmail.com",
-                    fullName = "Masego L. Kaelo",
-                    cellphone = "71649231",
-                    cardNumber = "4556102434529012",
-                    cardExpiry = "10/29",
-                    cardCvvOrPin = "123",
-                    passwordHash = "1234",
-                    biometricsEnabled = true
-                  ) { s, m -> }
-                }
-                viewModel.loginWithPassword("masego@gmail.com", "1234") { s, m ->
-                  if (s) onAuthSuccess()
-                }
-              }
-              .background(NavySurface)
-              .padding(14.dp),
-            color = Color.Transparent
-          ) {
-            Column {
+          // If there are no registered profiles, prompt user to create one (default to Login view)
+          if (registeredUsers.isEmpty()) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
               Text(
-                text = "💡 QUICK DEMO AUTO-LOGIN",
-                color = CoralOrange,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Black
-              )
-              Text(
-                text = "Click here to auto-fill registration (Masego L. Kaelo) and log in straight to the simulated sandbox immediately.",
+                text = "No account? Create profile.",
                 color = TextMuted,
-                fontSize = 11.sp
+                modifier = Modifier
+                  .clickable { isRegisterTab = true }
+                  .padding(8.dp)
               )
             }
           }
@@ -1522,138 +1506,7 @@ fun AuthScreen(
             }
           }
 
-          // 2. CELLPHONE SETUP
-          Card(
-            colors = CardDefaults.cardColors(containerColor = NavySurface),
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
-          ) {
-            Column(
-              modifier = Modifier.padding(14.dp),
-              verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-              Text(
-                "2. Mobile Cellphone (Botswana +267)",
-                color = CoralOrange,
-                fontWeight = FontWeight.Black,
-                fontSize = 11.sp
-              )
-
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Box(
-                  modifier = Modifier
-                    .height(56.dp)
-                    .width(75.dp)
-                    .background(NavyPrimary, RoundedCornerShape(4.dp))
-                    .border(1.dp, NavyDistant, RoundedCornerShape(4.dp)),
-                  contentAlignment = Alignment.Center
-                ) {
-                  Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("+267", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                  }
-                }
-
-                OutlinedTextField(
-                  value = regCellphone,
-                  onValueChange = { if (it.length <= 8) regCellphone = it },
-                  label = { Text("Mobile Phone") },
-                  placeholder = { Text("e.g. 71649231") },
-                  modifier = Modifier
-                    .weight(1f)
-                    .testTag("reg_cellphone"),
-                  singleLine = true,
-                  colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = CoralOrange,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                  ),
-                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
-                )
-              }
-              Text(
-                "FNB and Student 360 utilize mobile auth SMS verifications. Input an 8-digit Botswana mobile number.",
-                color = TextMuted,
-                fontSize = 9.sp
-              )
-            }
-          }
-
-          // 3. Student 360 CARD LINKING
-          Card(
-            colors = CardDefaults.cardColors(containerColor = NavySurface),
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, if (isDarkThemeGlobal) Color.White.copy(alpha = 0.12f) else Color.Black.copy(alpha = 0.08f)),
-          ) {
-            Column(
-              modifier = Modifier.padding(14.dp),
-              verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-              Text(
-                "3. Student 360 Debit/Credit Card Mapping",
-                color = CoralOrange,
-                fontWeight = FontWeight.Black,
-                fontSize = 11.sp
-              )
-
-              OutlinedTextField(
-                value = regCardNumber,
-                onValueChange = { if (it.length <= 16) regCardNumber = it },
-                label = { Text("16-Digit Card Number") },
-                leadingIcon = { Icon(Icons.Default.AccountBox, contentDescription = "Card icon", tint = TextMuted) },
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .testTag("reg_cardNumber"),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                  focusedBorderColor = CoralOrange,
-                  focusedTextColor = TextPrimary,
-                  unfocusedTextColor = TextPrimary
-                ),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-              )
-
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-              ) {
-                OutlinedTextField(
-                  value = regCardExpiry,
-                  onValueChange = { regCardExpiry = it },
-                  label = { Text("Expiry (MM/YY)") },
-                  placeholder = { Text("10/29") },
-                  modifier = Modifier
-                    .weight(1f)
-                    .testTag("reg_cardExpiry"),
-                  singleLine = true,
-                  colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = CoralOrange,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                  )
-                )
-                OutlinedTextField(
-                  value = regCardCvvOrPin,
-                  onValueChange = { if (it.length <= 4) regCardCvvOrPin = it },
-                  label = { Text("CVV/ATM PIN") },
-                  visualTransformation = PasswordVisualTransformation(),
-                  modifier = Modifier
-                    .weight(1f)
-                    .testTag("reg_cardCvvOrPin"),
-                  singleLine = true,
-                  colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = CoralOrange,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                  ),
-                  keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
-              }
-            }
-          }
+          // Simplified registration: cellphone and card linking removed — only name, email, and password are required
 
           // 4. SECURE PASSWORD CREDENTIALS
           Card(
@@ -1759,10 +1612,6 @@ fun AuthScreen(
                 viewModel.registerCustomer(
                   email = regEmail,
                   fullName = regFullName,
-                  cellphone = regCellphone,
-                  cardNumber = regCardNumber,
-                  cardExpiry = regCardExpiry,
-                  cardCvvOrPin = regCardCvvOrPin,
                   passwordHash = regPassword,
                   biometricsEnabled = regBiometricsEnabled
                 ) { success, msg ->
@@ -2015,11 +1864,11 @@ fun OverviewScreen(
     // 3. Realistic Card Image with beautiful overlays
     val cardTypeLabel = when {
       activeAccount?.accountName?.contains("Allowance", ignoreCase = true) == true -> "Student Card"
-      else -> "Youth Card"
+      else -> "Student Card"
     }
 
     val displayCard = activeCard ?: BSBCard(
-      cardHolder = "Masego L. Kaelo",
+      cardHolder = activeAccount?.accountName ?: "Student",
       cardNumberMasked = "**** **** **** " + (activeAccount?.accountNumber?.takeLast(4) ?: "8888"),
       cardExpiry = "10/29",
       linkedAccountId = activeAccountId,
@@ -2547,7 +2396,7 @@ fun AutoPayScreen(
         modifier = Modifier.weight(1f)
       ) {
         items(payments) { payment ->
-          val linkedAccount = accounts.find { it.id == payment.selectedAccountId }
+          val linkedAccount = accounts.find { it.id == (payment.selectedAccountId ?: -1) }
           val linkedCard = cards.find { it.id == payment.selectedCardId }
 
           Card(
@@ -3531,7 +3380,7 @@ fun AccountsScreen(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-              val cardTiers = listOf("Student Card", "Youth Card")
+              val cardTiers = listOf("Student Card")
               cardTiers.forEach { tier ->
                 val isSelected = selectedCardType == tier
                 val btnColor = if (isSelected) CoralOrange else NavyPrimary
@@ -4086,7 +3935,7 @@ fun BSBThemedCard(
         Box(modifier = Modifier.fillMaxSize().background(NavySurface)) {
             // Theme-specific background draw block
             when (cardType) {
-                "Youth Debit Card", "Youth Card" -> {
+                "Student Debit Card", "Student Card" -> {
                     // Deep navy background with diagonal/vertical vibrant traditional patterns
                     Box(modifier = Modifier.fillMaxSize().background(Color(0xFF071221)))
                     
@@ -4275,11 +4124,7 @@ fun BSBThemedCard(
                             letterSpacing = 0.5.sp
                         )
                         Text(
-                            text = when {
-                              cardType.contains("Youth", ignoreCase = true) -> "Youth Co-Savings"
-                              cardType.contains("Student", ignoreCase = true) -> "Student Co-Savings"
-                              else -> "Companion Co-Savings"
-                            },
+                            text = if (cardType.contains("Student", ignoreCase = true)) "Student Co-Savings" else "Companion Co-Savings",
                             color = Color(0xFFFF8C00),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold
@@ -4411,8 +4256,8 @@ fun ProfileScreen(
     
     // Draft states for editable fields, pre-filled from loggedInUser
     var isEditMode by remember { mutableStateOf(false) }
-    var draftFullName by remember(loggedInUser) { mutableStateOf(loggedInUser?.fullName ?: "Masego L. Kaelo") }
-    var draftCellphone by remember(loggedInUser) { mutableStateOf(loggedInUser?.cellphone ?: "71649231") }
+    var draftFullName by remember(loggedInUser) { mutableStateOf(loggedInUser?.fullName ?: "") }
+        var draftCellphone by remember(loggedInUser) { mutableStateOf(loggedInUser?.cellphone ?: "") }
     var draftDailyLimit by remember(loggedInUser) { mutableStateOf((loggedInUser?.dailyCardLimit ?: 5000.0).toFloat()) }
     var draftStatementFreq by remember(loggedInUser) { mutableStateOf(loggedInUser?.statementFrequency ?: "Monthly") }
     
@@ -4482,7 +4327,7 @@ fun ProfileScreen(
                             fontSize = 13.sp
                         )
                         Text(
-                            text = "Email: ${loggedInUser?.email ?: "masego@gmail.com"}",
+                          text = "Email: ${loggedInUser?.email ?: ""}",
                             color = TextMuted,
                             fontSize = 12.sp
                         )
@@ -5142,7 +4987,7 @@ fun CalendarScreen(
         } else {
           Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             paymentsOnDay.forEach { payment ->
-              val payAccount = accounts.find { it.id == payment.selectedAccountId }
+              val payAccount = accounts.find { it.id == (payment.selectedAccountId ?: -1) }
               
               Column(
                 modifier = Modifier

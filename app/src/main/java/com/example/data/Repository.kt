@@ -101,54 +101,17 @@ class Repository(private val db: AppDatabase) {
     suspend fun seedDatabaseIfEmpty() {
         val existingAccounts = accountDao.getAllAccountsDirect()
         if (existingAccounts.isEmpty()) {
-            Log.d("Repository", "Seeding initial Student 360 data...")
-            
-            // Seed Student 360 Accounts (BWP - Botswana Pula)
-            val acc1Id = accountDao.insertAccount(
-                BSBAccount(
-                    accountName = "Student Allowance",
-                    accountNumber = "10243950621",
-                    balance = 2200.00
-                )
-            ).toInt()
+            Log.d("Repository", "Seeding initial app demo data...")
 
-            val acc3Id = accountDao.insertAccount(
-                BSBAccount(
-                    accountName = "Sesame Smart Youth Savings",
-                    accountNumber = "30591248560",
-                    balance = 150.00
-                )
-            ).toInt()
-
-            // Seed Cards linked to accounts
-            cardDao.insertCard(
-                BSBCard(
-                    cardHolder = "Masego L. Kaelo",
-                    cardNumberMasked = "**** **** **** 5678",
-                    cardExpiry = "10/29",
-                    linkedAccountId = acc1Id,
-                    cardType = "Student Card"
-                )
-            )
-
-            cardDao.insertCard(
-                BSBCard(
-                    cardHolder = "Masego L. Kaelo",
-                    cardNumberMasked = "**** **** **** 1111",
-                    cardExpiry = "09/31",
-                    linkedAccountId = acc3Id,
-                    cardType = "Youth Card"
-                )
-            )
-
-            // Seed Scheduled Payments
+            // No default bank account is created anymore — the app focuses on receipt/statement analytics
+            // Seed a few scheduled payments (no linked account) to demonstrate reminders and analytics
             paymentDao.insertPayment(
                 ScheduledPayment(
                     paymentType = "Wifi",
-                    payeeName = "Mascom Campus Wifi Pack",
+                    payeeName = "Campus Wifi Subscription",
                     amount = 149.00,
                     paymentDay = 15,
-                    selectedAccountId = acc1Id,
+                    selectedAccountId = null,
                     isActive = true
                 )
             )
@@ -156,26 +119,26 @@ class Repository(private val db: AppDatabase) {
             paymentDao.insertPayment(
                 ScheduledPayment(
                     paymentType = "Mobile Subscription",
-                    payeeName = "Orange Student Data Plus",
+                    payeeName = "Student Data Plan",
                     amount = 99.00,
                     paymentDay = 5,
-                    selectedAccountId = acc1Id,
+                    selectedAccountId = null,
                     isActive = true
                 )
             )
 
             paymentDao.insertPayment(
                 ScheduledPayment(
-                    paymentType = "Savings",
-                    payeeName = "Emergency Reserve Saver",
-                    amount = 200.00,
-                    paymentDay = 25,
-                    selectedAccountId = acc1Id,
+                    paymentType = "Rent",
+                    payeeName = "Shared Accommodation Rent",
+                    amount = 1200.00,
+                    paymentDay = 1,
+                    selectedAccountId = null,
                     isActive = true
                 )
             )
 
-            // Seed Expense Entries
+            // Seed Expense Entries (demo)
             expenseDao.insertExpense(
                 ExpenseItem(
                     title = "Mascom Student Data",
@@ -212,6 +175,19 @@ class Repository(private val db: AppDatabase) {
                 )
             )
 
+            // Optionally ensure there is at least one registered user (local device profile) so UI has settings
+            val existingUser = userDao.getFirstUser()
+            if (existingUser == null) {
+                userDao.insertUser(
+                    RegisteredUser(
+                        email = "local@device",
+                        fullName = "Local Student",
+                        cellphone = "", cardNumber = "", cardExpiry = "", cardCvvOrPin = "",
+                        passwordHash = "", biometricsEnabled = false
+                    )
+                )
+            }
+
             // Seed Initial Notifications
         }
     }
@@ -226,59 +202,36 @@ class Repository(private val db: AppDatabase) {
         val duePayments = allPayments.filter { it.paymentDay == dayOfMonth && it.isActive }
 
         for (payment in duePayments) {
-            val account = accountDao.getAccountById(payment.selectedAccountId)
-            if (account != null) {
-                if (account.balance >= payment.amount) {
-                    // Update balance
-                    val updatedAccount = account.copy(balance = account.balance - payment.amount)
-                    accountDao.updateAccount(updatedAccount)
+            // For analytics-first behavior we don't touch bank balances here. Instead we record the occurrence
+            // as an expense entry and create a reminder/notification that a scheduled payment would have been executed.
 
-                    // Log expense
-                    expenseDao.insertExpense(
-                        ExpenseItem(
-                            title = "Auto Paid & Link: ${payment.payeeName}",
-                            amount = payment.amount,
-                            category = when (payment.paymentType) {
-                                "Savings Account" -> "Savings"
-                                "Wifi" -> "Wifi"
-                                "Mobile Subscription" -> "Mobile Subscription"
-                                else -> "Other Outflow"
-                            }
-                        )
-                    )
-
-                    // Update payment's last billing date
-                    paymentDao.updatePayment(payment.copy(lastPaymentDate = System.currentTimeMillis()))
-
-                    // Log notification
-                    notificationDao.insertNotification(
-                        AppNotification(
-                            title = "Auto-Payment Done: P${String.format("%.2f", payment.amount)}",
-                            message = "Success: P${String.format("%.2f", payment.amount)} was sent to ${payment.payeeName} from ${account.accountName} (${account.accountNumber.takeLast(4)}).",
-                            timestamp = System.currentTimeMillis()
-                        )
-                    )
-                    paymentsExecuted++
-                } else {
-                    // Insufficient funds notification
-                    notificationDao.insertNotification(
-                        AppNotification(
-                            title = "Payment Failed: Insufficient Funds",
-                            message = "Declined: Could not pay P${String.format("%.2f", payment.amount)} to ${payment.payeeName} from ${account.accountName} due to low balance.",
-                            timestamp = System.currentTimeMillis()
-                        )
-                    )
-                }
-            } else {
-                // Invalid account linked
-                notificationDao.insertNotification(
-                    AppNotification(
-                        title = "Payment Failed: Account Missing",
-                        message = "Declined: The source Student 360 Account for paying ${payment.payeeName} is no longer active.",
-                        timestamp = System.currentTimeMillis()
-                    )
+            expenseDao.insertExpense(
+                ExpenseItem(
+                    title = "Scheduled: ${payment.payeeName}",
+                    amount = payment.amount,
+                    category = when (payment.paymentType) {
+                        "Savings Account" -> "Savings"
+                        "Wifi" -> "Wifi"
+                        "Mobile Subscription" -> "Mobile Subscription"
+                        "Rent" -> "Rent"
+                        else -> "Other Outflow"
+                    }
                 )
-            }
+            )
+
+            // Mark last payment date
+            paymentDao.updatePayment(payment.copy(lastPaymentDate = System.currentTimeMillis()))
+
+            // Notify the user — generic message (no account-specific wording)
+            notificationDao.insertNotification(
+                AppNotification(
+                    title = "Reminder: Scheduled Payment",
+                    message = "A scheduled payment of P${String.format("%.2f", payment.amount)} for ${payment.payeeName} is due/processed for day $dayOfMonth.",
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+
+            paymentsExecuted++
         }
         return paymentsExecuted
     }

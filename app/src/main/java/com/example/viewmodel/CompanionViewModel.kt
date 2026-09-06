@@ -53,7 +53,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     private val _loggedInUser = MutableStateFlow<RegisteredUser?>(null)
     val loggedInUser: StateFlow<RegisteredUser?> = _loggedInUser.asStateFlow()
 
-    private val _isLoggedIn = MutableStateFlow(true)
+    private val _isLoggedIn = MutableStateFlow(false)
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
     private val _pendingApproval = MutableStateFlow<PendingPurchaseApproval?>(null)
@@ -66,29 +66,11 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     init {
         viewModelScope.launch {
             repository.seedDatabaseIfEmpty()
-            // Check if there is any registered user to pre-load as biometric/login option
-            var user = repository.getFirstUser()
-            if (user == null) {
-                // Seed a default registered user so there is always an active profile to customize
-                val defaultUser = RegisteredUser(
-                    email = "masego@gmail.com",
-                    fullName = "Masego L. Kaelo",
-                    cellphone = "71649231",
-                    cardNumber = "4556102434529012",
-                    cardExpiry = "10/29",
-                    cardCvvOrPin = "123",
-                    passwordHash = "1234",
-                    biometricsEnabled = true,
-                    dailyCardLimit = 2000.0,
-                    smsAlertsEnabled = true,
-                    isCardFrozen = false,
-                    contactlessEnabled = true,
-                    statementFrequency = "Monthly"
-                )
-                repository.registerUser(defaultUser)
-                user = defaultUser
-            }
+            // Load the first registered user if present
+            val user = repository.getFirstUser()
             _loggedInUser.value = user
+            // Auth removed: default the app to 'logged in' so signup/login screens are skipped
+            _isLoggedIn.value = true
         }
     }
 
@@ -202,10 +184,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     fun registerCustomer(
         email: String,
         fullName: String,
-        cellphone: String,
-        cardNumber: String,
-        cardExpiry: String,
-        cardCvvOrPin: String,
         passwordHash: String,
         biometricsEnabled: Boolean,
         onResult: (Boolean, String) -> Unit
@@ -218,24 +196,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             onResult(false, "Please enter a valid full name.")
             return
         }
-        val cleanPhone = cellphone.replace(" ", "").replace("-", "")
-        if (cleanPhone.length < 8) {
-            onResult(false, "Please enter a valid Botswana cellphone number (e.g. 71XXXXXX).")
-            return
-        }
-        val cleanCard = cardNumber.replace(" ", "").replace("-", "")
-        if (cleanCard.length < 16) {
-            onResult(false, "Please enter a valid 16-digit card number.")
-            return
-        }
-        if (cardExpiry.length < 5 || !cardExpiry.contains("/")) {
-            onResult(false, "Expiry date must be in MM/YY format.")
-            return
-        }
-        if (cardCvvOrPin.length < 3) {
-            onResult(false, "Please enter a valid 3-digit CVV or 4-digit ATM PIN.")
-            return
-        }
         if (passwordHash.length < 4) {
             onResult(false, "Password must be at least 4 characters long.")
             return
@@ -245,10 +205,10 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             val user = RegisteredUser(
                 email = email.trim(),
                 fullName = fullName.trim(),
-                cellphone = cleanPhone,
-                cardNumber = cleanCard,
-                cardExpiry = cardExpiry.trim(),
-                cardCvvOrPin = cardCvvOrPin,
+                cellphone = "",
+                cardNumber = "",
+                cardExpiry = "",
+                cardCvvOrPin = "",
                 passwordHash = passwordHash,
                 biometricsEnabled = biometricsEnabled,
                 // New user: no preset allocations, total allowance P2200
@@ -264,29 +224,9 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
             )
             repository.registerUser(user)
             _loggedInUser.value = user
-            
-            // Link a custom default account matching user's register details
-            val accId = repository.addAccount(
-                BSBAccount(
-                    accountName = "Student 360 Ordinary Savings",
-                    accountNumber = "1024" + (1000000..9999999).random().toString(),
-                    balance = 2200.00
-                )
-            ).toInt()
 
-            val last4Digits = cleanCard.takeLast(4)
-            val maskedNo = "**** **** **** $last4Digits"
-            repository.addCard(
-                BSBCard(
-                    cardHolder = fullName,
-                    cardNumberMasked = maskedNo,
-                    cardExpiry = cardExpiry,
-                    linkedAccountId = accId,
-                    cardType = "Student Card"
-                )
-            )
-
-            onResult(true, "Registration successful! Welcome to Student 360.")
+            // No bank account is auto-created on registration — auth/registration UI is removed in the app flow.
+            onResult(true, "OK")
         }
     }
 
@@ -365,7 +305,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         payee: String,
         amount: Double,
         day: Int,
-        accountId: Int,
+        accountId: Int?,
         cardId: Int?,
         recipientNum: String? = null,
         recipientBranchNo: String? = null,
