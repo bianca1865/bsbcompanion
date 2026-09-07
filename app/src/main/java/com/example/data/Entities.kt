@@ -1,104 +1,49 @@
 package com.example.data
 
 import androidx.room.Entity
-import androidx.room.ForeignKey
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "bsb_accounts")
-data class BSBAccount(
+@Entity(tableName = "expenses")
+data class Expense(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val accountName: String,
-    val accountNumber: String,
-    val balance: Double
-)
-
-@Entity(
-    tableName = "bsb_cards",
-    foreignKeys = [
-        ForeignKey(
-            entity = BSBAccount::class,
-            parentColumns = ["id"],
-            childColumns = ["linkedAccountId"],
-            onDelete = ForeignKey.CASCADE
-        )
-    ]
-)
-data class BSBCard(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val cardHolder: String,
-    val cardNumberMasked: String,
-    val cardExpiry: String,
-    val linkedAccountId: Int,
-    val cardType: String = "Student Card"
-)
-
-@Entity(tableName = "scheduled_payments")
-data class ScheduledPayment(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val paymentType: String, // "Savings Account", "Wifi", "Mobile Subscription", "Rent", "Other"
-    val payeeName: String,   // e.g. "BTC Broadband", "Mascom Online", "Netflix", "Education Savings"
+    val merchant: String,
     val amount: Double,
-    val paymentDay: Int,     // 1 - 31
-    val lastPaymentDate: Long? = null, // timestamp
-    // selectedAccountId is now optional — the app no longer requires a linked Student 360 account to log/pay reminders
-    val selectedAccountId: Int? = null,
-    val selectedCardId: Int? = null, // Optionally linked card
-    val isActive: Boolean = true,
-    val recipientAccount: String? = null,
-    val recipientBranchNumber: String? = null,
-    val recipientBranchName: String? = null,
-    val recipientName: String? = null
-)
-
-@Entity(tableName = "expense_items")
-data class ExpenseItem(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val title: String,
-    val amount: Double,
-    val category: String, // "Savings", "Wifi", "Mobile Subscription", "Other Outflow"
+    val date: String,
+    val category: String,
+    val type: String = "Manual", // "Manual", "Scan", "Statement", "E-Receipt"
     val timestamp: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "app_notifications")
-data class AppNotification(
+@Entity(tableName = "recurring_expenses")
+data class RecurringExpense(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val title: String,
-    val message: String,
-    val timestamp: Long = System.currentTimeMillis(),
-    val isRead: Boolean = false
+    val name: String,
+    val amount: Double,
+    val dueDate: Int, // Day of month
+    val category: String,
+    val frequency: String = "Monthly",
+    val isPaid: Boolean = false
 )
 
-@Entity(tableName = "registered_users")
-data class RegisteredUser(
-    @PrimaryKey val email: String,
-    val fullName: String,
-    val cellphone: String,
-    val cardNumber: String,
-    val cardExpiry: String,
-    val cardCvvOrPin: String,
-    val passwordHash: String,
-    val biometricsEnabled: Boolean = false,
-    val dailyCardLimit: Double = 5000.0,
-    val smsAlertsEnabled: Boolean = true,
-    val isCardFrozen: Boolean = false,
-    val contactlessEnabled: Boolean = true,
-    val statementFrequency: String = "Monthly",
-    val isDarkMode: Boolean = true,
-    // Allocator Bounds (Max Limits)
-    val foodMaxLimit: Double = 1500.0,
-    val rentMaxLimit: Double = 3000.0,
-    val transportMaxLimit: Double = 1000.0,
-    val savingsMaxLimit: Double = 2000.0,
-    val wifiMaxLimit: Double = 1000.0,
-    val mobileMaxLimit: Double = 1000.0,
-    // Current Allocations (Persistent State)
-    val foodAlloc: Double = 1000.0,
-    val rentAlloc: Double = 700.0,
-    val transportAlloc: Double = 250.0,
-    val savingsAlloc: Double = 250.0,
-    val wifiAlloc: Double = 0.0,
-    val mobileAlloc: Double = 0.0,
-    val totalAllowanceLimit: Double = 2200.0,
-    // Visible Components in Allocator (Comma separated categories)
-    val visibleCategories: String = "Groceries,Rent,Transport,Savings"
+@Entity(tableName = "budget_allocations")
+data class BudgetAllocation(
+    @PrimaryKey val category: String,
+    val allocatedAmount: Double,
+    val spentAmount: Double = 0.0,
+    val isEssential: Boolean = false
+)
+
+@Entity(tableName = "savings_goals")
+data class SavingsGoal(
+    @PrimaryKey val name: String,
+    val targetAmount: Double,
+    val currentAmount: Double = 0.0
+)
+
+@Entity(tableName = "user_profile")
+data class UserProfile(
+    @PrimaryKey val id: Int = 1,
+    val fullName: String = "Student",
+    val monthlyAllowance: Double = 2200.0,
+    val isDarkMode: Boolean = true
 )

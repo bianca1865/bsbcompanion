@@ -4,103 +4,61 @@ import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
 @Dao
-interface BSBAccountDao {
-    @Query("SELECT * FROM bsb_accounts ORDER BY id ASC")
-    fun getAllAccountsFlow(): Flow<List<BSBAccount>>
-
-    @Query("SELECT * FROM bsb_accounts")
-    suspend fun getAllAccountsDirect(): List<BSBAccount>
-
-    @Query("SELECT * FROM bsb_accounts WHERE id = :id LIMIT 1")
-    suspend fun getAccountById(id: Int): BSBAccount?
+interface ExpenseDao {
+    @Query("SELECT * FROM expenses ORDER BY timestamp DESC")
+    fun getAllExpensesFlow(): Flow<List<Expense>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAccount(account: BSBAccount): Long
-
-    @Update
-    suspend fun updateAccount(account: BSBAccount)
+    suspend fun insertExpense(expense: Expense): Long
 
     @Delete
-    suspend fun deleteAccount(account: BSBAccount)
-}
+    suspend fun deleteExpense(expense: Expense)
 
-@Dao
-interface BSBCardDao {
-    @Query("SELECT * FROM bsb_cards ORDER BY id ASC")
-    fun getAllCardsFlow(): Flow<List<BSBCard>>
-
-    @Query("SELECT * FROM bsb_cards WHERE linkedAccountId = :accountId")
-    fun getCardsForAccountFlow(accountId: Int): Flow<List<BSBCard>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertCard(card: BSBCard): Long
-
-    @Delete
-    suspend fun deleteCard(card: BSBCard)
-}
-
-@Dao
-interface ScheduledPaymentDao {
-    @Query("SELECT * FROM scheduled_payments ORDER BY paymentDay ASC")
-    fun getAllPaymentsFlow(): Flow<List<ScheduledPayment>>
-
-    @Query("SELECT * FROM scheduled_payments")
-    suspend fun getAllPaymentsDirect(): List<ScheduledPayment>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertPayment(payment: ScheduledPayment): Long
-
-    @Update
-    suspend fun updatePayment(payment: ScheduledPayment)
-
-    @Delete
-    suspend fun deletePayment(payment: ScheduledPayment)
-}
-
-@Dao
-interface ExpenseItemDao {
-    @Query("SELECT * FROM expense_items ORDER BY timestamp DESC")
-    fun getAllExpensesFlow(): Flow<List<ExpenseItem>>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertExpense(expense: ExpenseItem): Long
-
-    @Delete
-    suspend fun deleteExpense(expense: ExpenseItem)
-
-    @Query("DELETE FROM expense_items")
+    @Query("DELETE FROM expenses")
     suspend fun clearAllExpenses()
 }
 
 @Dao
-interface AppNotificationDao {
-    @Query("SELECT * FROM app_notifications ORDER BY timestamp DESC")
-    fun getAllNotificationsFlow(): Flow<List<AppNotification>>
+interface RecurringExpenseDao {
+    @Query("SELECT * FROM recurring_expenses ORDER BY dueDate ASC")
+    fun getAllRecurringFlow(): Flow<List<RecurringExpense>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertNotification(notification: AppNotification): Long
+    suspend fun insertRecurring(expense: RecurringExpense): Long
 
-    @Query("UPDATE app_notifications SET isRead = 1 WHERE id = :id")
-    suspend fun markAsRead(id: Int)
+    @Update
+    suspend fun updateRecurring(expense: RecurringExpense)
 
-    @Query("DELETE FROM app_notifications")
+    @Delete
+    suspend fun deleteRecurring(expense: RecurringExpense)
+}
+
+@Dao
+interface BudgetAllocationDao {
+    @Query("SELECT * FROM budget_allocations")
+    fun getAllAllocationsFlow(): Flow<List<BudgetAllocation>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAllocation(allocation: BudgetAllocation)
+
+    @Query("DELETE FROM budget_allocations")
     suspend fun clearAll()
 }
 
 @Dao
-interface RegisteredUserDao {
-    @Query("SELECT * FROM registered_users WHERE email = :email LIMIT 1")
-    suspend fun getUserByEmail(email: String): RegisteredUser?
-
-    @Query("SELECT * FROM registered_users LIMIT 1")
-    suspend fun getFirstUser(): RegisteredUser?
-
-    @Query("SELECT * FROM registered_users")
-    fun getAllRegisteredUsers(): Flow<List<RegisteredUser>>
+interface SavingsGoalDao {
+    @Query("SELECT * FROM savings_goals")
+    fun getAllGoalsFlow(): Flow<List<SavingsGoal>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertUser(user: RegisteredUser)
+    suspend fun insertGoal(goal: SavingsGoal)
+}
 
-    @Query("DELETE FROM registered_users")
-    suspend fun clearUser()
+@Dao
+interface UserProfileDao {
+    @Query("SELECT * FROM user_profile WHERE id = 1 LIMIT 1")
+    fun getUserProfileFlow(): Flow<UserProfile?>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun updateProfile(profile: UserProfile)
 }
