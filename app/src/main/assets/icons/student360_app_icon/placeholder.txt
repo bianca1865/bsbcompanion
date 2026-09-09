@@ -1,0 +1,1 @@
+Place the Student360 app icon (icon.png) in this directory.

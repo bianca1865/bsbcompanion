@@ -41,6 +41,12 @@ interface BudgetAllocationDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAllocation(allocation: BudgetAllocation)
 
+    @Update
+    suspend fun updateAllocation(allocation: BudgetAllocation)
+
+    @Delete
+    suspend fun deleteAllocation(allocation: BudgetAllocation)
+
     @Query("DELETE FROM budget_allocations")
     suspend fun clearAll()
 }
@@ -52,6 +58,12 @@ interface SavingsGoalDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertGoal(goal: SavingsGoal)
+
+    @Update
+    suspend fun updateGoal(goal: SavingsGoal)
+
+    @Delete
+    suspend fun deleteGoal(goal: SavingsGoal)
 }
 
 @Dao
@@ -61,4 +73,7 @@ interface UserProfileDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun updateProfile(profile: UserProfile)
+
+    @Query("UPDATE user_profile SET isLoggedIn = :isLoggedIn WHERE id = 1")
+    suspend fun setLoginStatus(isLoggedIn: Boolean)
 }

@@ -1,0 +1,1 @@
+Place the Student360 logo (logo.png) in this directory.

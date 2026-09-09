@@ -22,28 +22,44 @@ data class RecurringExpense(
     val dueDate: Int, // Day of month
     val category: String,
     val frequency: String = "Monthly",
-    val isPaid: Boolean = false
+    val isPaid: Boolean = false,
+    val isRecurring: Boolean = true
 )
 
 @Entity(tableName = "budget_allocations")
 data class BudgetAllocation(
-    @PrimaryKey val category: String,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val name: String,
+    val category: String,
     val allocatedAmount: Double,
     val spentAmount: Double = 0.0,
+    val dueDate: Int? = null,
+    val isRecurring: Boolean = false,
     val isEssential: Boolean = false
 )
 
 @Entity(tableName = "savings_goals")
 data class SavingsGoal(
-    @PrimaryKey val name: String,
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val name: String,
     val targetAmount: Double,
-    val currentAmount: Double = 0.0
+    val currentAmount: Double = 0.0,
+    val deadline: String? = null
 )
 
 @Entity(tableName = "user_profile")
 data class UserProfile(
     @PrimaryKey val id: Int = 1,
-    val fullName: String = "Student",
-    val monthlyAllowance: Double = 2200.0,
-    val isDarkMode: Boolean = true
+    val firstName: String = "",
+    val lastName: String = "",
+    val email: String = "",
+    val password: String = "", // Basic placeholder for local auth
+    val institution: String = "",
+    val monthlyAllowance: Double = 0.0,
+    val isLoggedIn: Boolean = false,
+    val isDarkMode: Boolean = true,
+    val hasCompletedOnboarding: Boolean = false,
+    val rentReminder: Boolean = true,
+    val budgetAlerts: Boolean = true,
+    val savingsReminders: Boolean = true
 )
