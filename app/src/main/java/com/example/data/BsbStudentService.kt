@@ -5,8 +5,27 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 import kotlin.math.max
 import kotlin.math.roundToInt
+
+data class BsbAccount(
+    val id: Int,
+    val accountName: String,
+    val balance: Double
+)
+
+data class ScheduledPayment(
+    val id: Int = (1000..9999).random(),
+    val paymentType: String,
+    val payeeName: String,
+    val amount: Double,
+    val paymentDay: Int,
+    val selectedAccountId: Int,
+    val isActive: Boolean
+)
 
 /**
  * Service abstraction layer for BSB Banking Integration.
@@ -46,15 +65,30 @@ class BsbStudentServiceImpl(
         )
     )
 
+    private val _accounts = MutableStateFlow(
+        listOf(
+            BsbAccount(1, "BSB Student Allowance Account", 1500.0),
+            BsbAccount(2, "BSB Sesame Youth Savings", 250.0)
+        )
+    )
+
+    private val _payments = MutableStateFlow(
+        listOf(
+            ScheduledPayment(1, "Rent", "Off-Campus Student Rez", 700.0, 2, 1, true),
+            ScheduledPayment(2, "Data", "Orange Botswana", 150.0, 10, 1, true),
+            ScheduledPayment(3, "Insurance", "Student Medical Cover", 80.0, 15, 1, false)
+        )
+    )
+
     override fun getStudentProfile(): Flow<StudentProfile> {
         return flowOf(defaultProfile)
     }
 
     override fun getFinancialSummary(simulatedDay: Int): Flow<FinancialSummary> {
         return combine(
-            repository.accounts,
+            _accounts,
             repository.expenses,
-            repository.payments
+            _payments
         ) { accounts, expenses, payments ->
             val allowance = defaultProfile.monthlyAllowance
             val totalSpent = expenses.sumOf { it.amount }
@@ -144,10 +178,10 @@ class BsbStudentServiceImpl(
             categories.map { (catName, budget, iconKey) ->
                 val spent = expenses.filter { exp ->
                     when (catName) {
-                        "Food & Meals" -> exp.category.contains("Groceries", true) || exp.category.contains("Food", true) || exp.title.contains("Cafeteria", true)
-                        "Transport & Kombi" -> exp.category.contains("Transport", true) || exp.title.contains("Combi", true) || exp.title.contains("Kombi", true)
-                        "Study Materials" -> exp.category.contains("Study", true) || exp.title.contains("Book", true) || exp.title.contains("Print", true)
-                        "Data & Wifi" -> exp.category.contains("Wifi", true) || exp.category.contains("Mobile", true) || exp.title.contains("Data", true)
+                        "Food & Meals" -> exp.category.contains("Groceries", true) || exp.category.contains("Food", true) || exp.merchant.contains("Cafeteria", true)
+                        "Transport & Kombi" -> exp.category.contains("Transport", true) || exp.merchant.contains("Combi", true) || exp.merchant.contains("Kombi", true)
+                        "Study Materials" -> exp.category.contains("Study", true) || exp.merchant.contains("Book", true) || exp.merchant.contains("Print", true)
+                        "Data & Wifi" -> exp.category.contains("Wifi", true) || exp.category.contains("Mobile", true) || exp.merchant.contains("Data", true)
                         "Savings Reserve" -> exp.category.contains("Savings", true)
                         else -> exp.category.contains("Other", true) || exp.category.contains("Personal", true)
                     }
@@ -164,7 +198,7 @@ class BsbStudentServiceImpl(
     }
 
     override fun getCommittedBills(simulatedDay: Int): Flow<List<CommittedBillItem>> {
-        return repository.payments.combine(flowOf(simulatedDay)) { payments, currentDay ->
+        return _payments.combine(flowOf(simulatedDay)) { payments, currentDay ->
             payments.map { p ->
                 val daysUntil = if (p.paymentDay >= currentDay) {
                     p.paymentDay - currentDay
@@ -187,7 +221,7 @@ class BsbStudentServiceImpl(
     override fun getAiInsights(simulatedDay: Int): Flow<List<FinancialInsight>> {
         return combine(
             getFinancialSummary(simulatedDay),
-            repository.payments,
+            _payments,
             repository.expenses
         ) { summary, payments, expenses ->
             val insights = mutableListOf<FinancialInsight>()
@@ -236,7 +270,7 @@ class BsbStudentServiceImpl(
 
             // 3. Kombi & Transport analysis
             val transportSpent = expenses.filter { 
-                it.category.contains("Transport", true) || it.title.contains("Combi", true) || it.title.contains("Kombi", true)
+                it.category.contains("Transport", true) || it.merchant.contains("Combi", true) || it.merchant.contains("Kombi", true)
             }.sumOf { it.amount }
             insights.add(
                 FinancialInsight(
@@ -266,106 +300,87 @@ class BsbStudentServiceImpl(
     }
 
     override suspend fun logQuickExpense(title: String, amount: Double, category: String) {
+        val now = Calendar.getInstance()
+        val dateStr = SimpleDateFormat("dd MMM", Locale.getDefault()).format(now.time)
         repository.addExpense(
-            ExpenseItem(
-                title = title,
+            Expense(
+                merchant = title,
                 amount = amount,
+                date = dateStr,
                 category = category,
+                type = "Manual",
                 timestamp = System.currentTimeMillis()
             )
-        )
-        // Also add receipt notification
-        repository.addNotification(
-            title = "Expense Logged: $title",
-            message = "P${String.format("%.2f", amount)} was recorded under $category. Financial overview updated."
         )
     }
 
     override suspend fun simulateAllowanceDeposit(amount: Double) {
-        val studentAccount = repository.accounts
-        // Add funds to primary student account
-        val primary = repository.getAccountById(1)
-        if (primary != null) {
-            repository.updateAccount(primary.copy(balance = primary.balance + amount))
+        _accounts.value = _accounts.value.map { account ->
+            if (account.id == 1) account.copy(balance = account.balance + amount) else account
         }
-        repository.addNotification(
-            title = "DTEF Allowance Credited",
-            message = "Monthly tertiary student allowance of P${String.format("%.2f", amount)} received into your BSB Student Account."
-        )
     }
 
     override suspend fun setRingFenced(billId: Int, ringFenced: Boolean) {
-        val paymentsList = repository.payments.first()
-        val target = paymentsList.find { it.id == billId }
-        if (target != null) {
-            repository.updatePayment(target.copy(isActive = ringFenced))
-            val statusStr = if (ringFenced) "Ring-Fenced & Protected" else "Released / Un-ring-fenced"
-            repository.addNotification(
-                title = "Obligation Protection Updated",
-                message = "${target.payeeName} (P${String.format("%.2f", target.amount)}) is now $statusStr."
-            )
+        _payments.value = _payments.value.map { p ->
+            if (p.id == billId) p.copy(isActive = ringFenced) else p
         }
     }
 
     override suspend fun addCommittedBill(title: String, amount: Double, dueDay: Int, category: String) {
-        val accountsList = repository.accounts.first()
-        val primaryId = accountsList.firstOrNull()?.id ?: 1
-        repository.addPayment(
-            ScheduledPayment(
-                paymentType = category,
-                payeeName = title,
-                amount = amount,
-                paymentDay = dueDay.coerceIn(1, 31),
-                selectedAccountId = primaryId,
-                isActive = true
-            )
+        val newBill = ScheduledPayment(
+            paymentType = category,
+            payeeName = title,
+            amount = amount,
+            paymentDay = dueDay.coerceIn(1, 31),
+            selectedAccountId = 1,
+            isActive = true
         )
-        repository.addNotification(
-            title = "Recurring Bill Registered",
-            message = "$title (P${String.format("%.2f", amount)}) due on Day $dueDay is now ring-fenced and protected."
-        )
+        _payments.value = _payments.value + newBill
     }
 
     override suspend fun settleBillNow(billId: Int) {
-        val paymentsList = repository.payments.first()
-        val bill = paymentsList.find { it.id == billId } ?: return
-        val accountsList = repository.accounts.first()
-        val primary = accountsList.find { it.accountName.contains("Allowance", true) } ?: accountsList.firstOrNull()
+        val bill = _payments.value.find { it.id == billId } ?: return
+        val primary = _accounts.value.find { it.id == 1 }
         if (primary != null && primary.balance >= bill.amount) {
-            repository.updateAccount(primary.copy(balance = primary.balance - bill.amount))
+            _accounts.value = _accounts.value.map {
+                if (it.id == 1) it.copy(balance = it.balance - bill.amount) else it
+            }
+            val now = Calendar.getInstance()
+            val dateStr = SimpleDateFormat("dd MMM", Locale.getDefault()).format(now.time)
             repository.addExpense(
-                ExpenseItem(
-                    title = "Paid: ${bill.payeeName}",
+                Expense(
+                    merchant = "Paid: ${bill.payeeName}",
                     amount = bill.amount,
+                    date = dateStr,
                     category = bill.paymentType,
+                    type = "Manual",
                     timestamp = System.currentTimeMillis()
                 )
-            )
-            repository.addNotification(
-                title = "Bill Settled: ${bill.payeeName}",
-                message = "Executed payment of P${String.format("%.2f", bill.amount)} from your protected funds."
             )
         }
     }
 
     override suspend fun transferToSavings(amount: Double) {
-        val accountsList = repository.accounts.first()
-        val primary = accountsList.find { it.accountName.contains("Allowance", true) } ?: accountsList.firstOrNull()
-        val savings = accountsList.find { it.accountName.contains("Savings", true) }
-        if (primary != null && savings != null && primary.balance >= amount) {
-            repository.updateAccount(primary.copy(balance = primary.balance - amount))
-            repository.updateAccount(savings.copy(balance = savings.balance + amount))
+        val primary = _accounts.value.find { it.id == 1 }
+        if (primary != null && primary.balance >= amount) {
+            _accounts.value = _accounts.value.map {
+                when (it.id) {
+                    1 -> it.copy(balance = it.balance - amount)
+                    2 -> it.copy(balance = it.balance + amount)
+                    else -> it
+                }
+            }
+            val now = Calendar.getInstance()
+            val dateStr = SimpleDateFormat("dd MMM", Locale.getDefault()).format(now.time)
             repository.addExpense(
-                ExpenseItem(
-                    title = "Deposit to BSB Sesame Savings",
+                Expense(
+                    merchant = "Deposit to BSB Sesame Savings",
                     amount = amount,
+                    date = dateStr,
                     category = "Savings Reserve",
+                    type = "Manual",
                     timestamp = System.currentTimeMillis()
                 )
-            )
-            repository.addNotification(
-                title = "BSB Sesame Smart Savings Deposit",
-                message = "P${String.format("%.2f", amount)} transferred into your Sesame Youth Savings reserve."
             )
         }
     }
@@ -374,9 +389,5 @@ class BsbStudentServiceImpl(
         val current = _customBudgets.value.toMutableMap()
         current[categoryName] = newBudget.coerceAtLeast(50.0)
         _customBudgets.value = current
-        repository.addNotification(
-            title = "Envelope Budget Adjusted",
-            message = "$categoryName budget updated to P${String.format("%.2f", newBudget)}."
-        )
     }
 }

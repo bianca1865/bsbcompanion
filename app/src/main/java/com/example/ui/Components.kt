@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,25 +22,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.BudgetAllocation
 import com.example.ui.theme.*
+import com.example.viewmodel.WeeklyDataPoint
 
 /**
  * 1. Weekly Trend Bar Chart
- * Visualises spending across weeks with animations.
+ * Requirement 6 & 7: Exactly 7 days always displayed.
+ * Requirement 10: Display P0 if no spending.
  */
 @Composable
 fun SimpleBarChart(
-    data: Map<String, Double>,
+    data: List<WeeklyDataPoint>,
     modifier: Modifier = Modifier
 ) {
-    val maxValue = (data.values.maxOrNull() ?: 1.0).coerceAtLeast(1.0)
+    val maxValue = (data.maxOfOrNull { it.amount } ?: 1.0).coerceAtLeast(1.0)
     
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.Bottom
     ) {
-        data.forEach { (label, value) ->
-            val heightFactor = (value / maxValue).toFloat().coerceIn(0.05f, 1f)
+        data.forEach { point ->
+            val heightFactor = (point.amount / maxValue).toFloat().coerceIn(0.01f, 1f)
             val animatedHeight by animateFloatAsState(
                 targetValue = heightFactor,
                 animationSpec = tween(1000),
@@ -50,19 +53,26 @@ fun SimpleBarChart(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.weight(1f)
             ) {
+                Text(
+                    text = "P${point.amount.toInt()}",
+                    color = Color.White,
+                    fontSize = 8.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(animatedHeight)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(CoralOrange)
+                        .height((80 * animatedHeight).dp)
+                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                        .background(if(point.amount > 0) CoralOrange else NavyPrimary.copy(alpha = 0.3f))
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = label.take(3),
+                    text = point.day,
                     color = TextMuted,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
@@ -71,46 +81,61 @@ fun SimpleBarChart(
 
 /**
  * 2. Category Breakdown Donut Chart
- * Segmented spending categories with a legend.
+ * Requirement 5: Spending category analysis from actual categorised transactions.
  */
 @Composable
 fun SpendingDonutChart(
     categories: Map<String, Double>,
     modifier: Modifier = Modifier
 ) {
-    val total = categories.values.sum().coerceAtLeast(1.0)
-    val colors = listOf(CoralOrange, GoldOrange, BlueAccent, Color.Cyan, Color(0xFF9C27B0), Color(0xFF4CAF50))
+    val totalSum = categories.values.sum()
+    val totalForCalc = totalSum.coerceAtLeast(1.0)
+    val colorList = listOf(CoralOrange, GoldOrange, BlueAccent, Color(0xFF00B4D8), Color(0xFF9C27B0), Color(0xFF4CAF50), Color(0xFFFFEB3B), Color(0xFFE91E63))
     
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(100.dp), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(120.dp), contentAlignment = Alignment.Center) {
             Canvas(modifier = Modifier.fillMaxSize()) {
                 var startAngle = -90f
-                categories.values.forEachIndexed { index, value ->
-                    val sweepAngle = (value / total * 360f).toFloat()
+                if (categories.isEmpty()) {
                     drawArc(
-                        color = colors.getOrElse(index) { Color.Gray },
-                        startAngle = startAngle,
-                        sweepAngle = sweepAngle,
+                        color = NavyPrimary,
+                        startAngle = 0f,
+                        sweepAngle = 360f,
                         useCenter = false,
-                        style = Stroke(width = 20f, cap = StrokeCap.Round)
+                        style = Stroke(width = 24f)
                     )
-                    startAngle += sweepAngle
+                } else {
+                    categories.values.forEachIndexed { index, value ->
+                        val sweepAngle = (value / totalForCalc * 360f).toFloat()
+                        drawArc(
+                            color = colorList.getOrElse(index) { Color.Gray },
+                            startAngle = startAngle,
+                            sweepAngle = sweepAngle,
+                            useCenter = false,
+                            style = Stroke(width = 24f, cap = StrokeCap.Round)
+                        )
+                        startAngle += sweepAngle
+                    }
                 }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Total", color = TextMuted, fontSize = 8.sp)
-                Text("P${total.toInt()}", color = Color.White, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                Text("Spent", color = TextMuted, fontSize = 10.sp, style = MaterialTheme.typography.labelSmall)
+                Text("P${totalSum.toInt()}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, style = MaterialTheme.typography.titleMedium)
             }
         }
         
         Spacer(modifier = Modifier.width(16.dp))
         
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            categories.keys.take(4).forEachIndexed { index, name ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(6.dp).clip(CircleShape).background(colors.getOrElse(index) { Color.Gray }))
-                    Spacer(Modifier.width(6.dp))
-                    Text(name, color = Color.White, fontSize = 10.sp)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (categories.isEmpty()) {
+                Text("No data", color = TextMuted, fontSize = 12.sp)
+            } else {
+                categories.entries.take(5).forEachIndexed { index, entry ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(8.dp).clip(CircleShape).background(colorList.getOrElse(index) { Color.Gray }))
+                        Spacer(Modifier.width(8.dp))
+                        Text("${entry.key}: P${entry.value.toInt()}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                    }
                 }
             }
         }
@@ -119,7 +144,7 @@ fun SpendingDonutChart(
 
 /**
  * 3. Spending Utilisation Ring (Gauge)
- * Large visual for overall allowance consumption.
+ * Requirement 3: Financial figures for Dashboard.
  */
 @Composable
 fun AllowanceProgressRing(
@@ -141,35 +166,35 @@ fun AllowanceProgressRing(
                 startAngle = 0f,
                 sweepAngle = 360f,
                 useCenter = false,
-                style = Stroke(width = 16f)
+                style = Stroke(width = 18f)
             )
             drawArc(
                 color = if (targetProgress > 0.9f) Color.Red else CoralOrange,
                 startAngle = -90f,
                 sweepAngle = animatedProgress * 360f,
                 useCenter = false,
-                style = Stroke(width = 16f, cap = StrokeCap.Round)
+                style = Stroke(width = 18f, cap = StrokeCap.Round)
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("${(targetProgress * 100).toInt()}%", color = Color.White, fontWeight = FontWeight.Black, fontSize = 24.sp)
-            Text("Utilised", color = TextMuted, fontSize = 10.sp)
+            Text("${(targetProgress * 100).toInt()}%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp, style = MaterialTheme.typography.headlineLarge)
+            Text("Used", color = TextMuted, fontSize = 10.sp, style = MaterialTheme.typography.labelSmall)
         }
     }
 }
 
 /**
  * 4. Category Performance Bars
- * Comparison of spent vs allocated for top categories.
+ * Requirement 13: Budget bricks.
  */
 @Composable
 fun CategoryComparisonChart(
     allocations: List<BudgetAllocation>,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (allocations.isEmpty()) {
-            Text("No budgets set.", color = TextMuted, fontSize = 12.sp)
+            Text("No budgets defined yet.", color = TextMuted, fontSize = 13.sp)
         } else {
             allocations.take(4).forEach { alloc ->
                 val progress = if (alloc.allocatedAmount > 0) (alloc.spentAmount / alloc.allocatedAmount).toFloat().coerceIn(0f, 1.2f) else 0f
@@ -177,11 +202,11 @@ fun CategoryComparisonChart(
                 
                 Column {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(alloc.category, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Text("P${alloc.spentAmount.toInt()} / P${alloc.allocatedAmount.toInt()}", color = TextMuted, fontSize = 10.sp)
+                        Text(alloc.name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("P${alloc.spentAmount.toInt()} / P${alloc.allocatedAmount.toInt()}", color = TextMuted, fontSize = 11.sp)
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape).background(NavyPrimary)) {
+                    Spacer(modifier = Modifier.height(6.6.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(NavyPrimary)) {
                         Box(modifier = Modifier
                             .fillMaxWidth(animatedWidth)
                             .fillMaxHeight()
@@ -197,12 +222,7 @@ fun CategoryComparisonChart(
 @Composable
 fun SummaryItem(label: String, value: String, color: Color) {
     Column {
-        Text(label, color = TextMuted, fontSize = 12.sp)
-        Text(value, color = color, fontSize = 22.sp, fontWeight = FontWeight.Black)
+        Text(label, color = TextMuted, fontSize = 12.sp, style = MaterialTheme.typography.labelSmall)
+        Text(value, color = color, fontSize = 24.sp, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineLarge)
     }
-}
-
-@Composable
-fun SpendingDonutPlaceholder(categories: Map<String, Double>, modifier: Modifier = Modifier) {
-    SpendingDonutChart(categories, modifier)
 }

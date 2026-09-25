@@ -72,7 +72,7 @@ fun Student360DashboardScreen(
     val profile by viewModel.studentProfile.collectAsStateWithLifecycle()
     val simulatedDay by viewModel.simulatedDay.collectAsStateWithLifecycle()
     val freeDataMode by viewModel.freeDataMode.collectAsStateWithLifecycle()
-    val expenses by viewModel.expenses.collectAsStateWithLifecycle()
+    val expenses by viewModel.expenseItems.collectAsStateWithLifecycle()
 
     var showExpenseDialog by remember { mutableStateOf(false) }
     var showPaydayDialog by remember { mutableStateOf(false) }
@@ -81,7 +81,7 @@ fun Student360DashboardScreen(
     var selectedCategoryForRebalance by remember { mutableStateOf<CategorySpendItem?>(null) }
     var showScorecardDialog by remember { mutableStateOf(false) }
     val roundUpSavingsEnabled by viewModel.roundUpSavingsEnabled.collectAsStateWithLifecycle()
-    val savingsGoals by viewModel.savingsGoals.collectAsStateWithLifecycle()
+    val savingsGoals by viewModel.studentSavingsGoals.collectAsStateWithLifecycle()
 
     // Priorities 2 - 8 Dialog States
     var showStatementUploadDialog by remember { mutableStateOf(false) }

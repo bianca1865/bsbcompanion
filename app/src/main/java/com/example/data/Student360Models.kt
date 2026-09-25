@@ -116,3 +116,10 @@ data class BsbPaymentReceipt(
     val tokenCode: String? = null,
     val fee: Double = 0.0
 )
+
+data class ExpenseItem(
+    val title: String,
+    val amount: Double,
+    val category: String,
+    val timestamp: Long
+)

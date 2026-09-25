@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Help
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,8 +56,7 @@ import java.util.Calendar
 
 /**
  * STUDENT360 - Main Application Controller
- * Handles navigation and core screen orchestration.
- * Dashboard features 4 interactive visuals and a dedicated Profile/Logout menu.
+ * Polished student financial management experience with accurate data.
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,10 +71,10 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val user by viewModel.userProfile.collectAsStateWithLifecycle()
-            val isDark = user?.isDarkMode ?: true
+            val isDark = user?.isDarkMode ?: isSystemInDarkTheme()
             
             MyApplicationTheme(darkTheme = isDark) {
-                Surface(color = NavyBackground) {
+                Surface(color = MaterialTheme.colorScheme.background) {
                     when {
                         user == null || !user!!.isLoggedIn -> AuthNavigation(viewModel)
                         !user!!.hasCompletedOnboarding -> OnboardingScreen(viewModel)
@@ -126,7 +127,7 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
     } else {
         Scaffold(
             bottomBar = {
-                NavigationBar(containerColor = NavySurface) {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                     NavigationTab.entries.forEach { tab ->
                         NavigationBarItem(
                             selected = selectedTab == tab,
@@ -134,7 +135,7 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
                             icon = { Icon(tab.icon, contentDescription = tab.title) },
                             label = { Text(tab.title) },
                             colors = NavigationBarItemDefaults.colors(
-                                indicatorColor = NavyPrimary,
+                                indicatorColor = CoralOrange.copy(alpha = 0.2f),
                                 selectedIconColor = CoralOrange,
                                 unselectedIconColor = TextMuted,
                                 selectedTextColor = CoralOrange,
@@ -148,7 +149,7 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(NavyBackground)
+                    .background(MaterialTheme.colorScheme.background)
                     .padding(padding)
             ) {
                 Crossfade(targetState = selectedTab, label = "TabSwitch") { tab ->
@@ -165,16 +166,9 @@ fun MainAppScreen(viewModel: CompanionViewModel) {
     }
 }
 
-/**
- * HOME SCREEN - Dashboard with 4 Visuals
- * 1. Progress Gauge (Remaining Balance)
- * 2. Donut Chart (Category Breakdown)
- * 3. Bar Chart (Weekly Trend)
- * 4. Performance Bars (Budget Comparison)
- */
 @Composable
 fun HomeScreen(viewModel: CompanionViewModel, onAction: (NavigationTab) -> Unit) {
-    val expenses by viewModel.expenses.collectAsStateWithLifecycle()
+    val stats by viewModel.dashboardStats.collectAsStateWithLifecycle()
     val allocations by viewModel.budgetAllocations.collectAsStateWithLifecycle()
     val user by viewModel.userProfile.collectAsStateWithLifecycle()
     val weeklySpending by viewModel.weeklySpending.collectAsStateWithLifecycle()
@@ -184,9 +178,6 @@ fun HomeScreen(viewModel: CompanionViewModel, onAction: (NavigationTab) -> Unit)
     LaunchedEffect(scrollState.value) { viewModel.homeScrollValue = scrollState.value }
     
     val context = LocalContext.current
-    val allowance = user?.monthlyAllowance ?: 0.0
-    val totalSpent = expenses.sumOf { it.amount }
-    val remaining = allowance - totalSpent
     
     val greeting = when (Calendar.getInstance().get(Calendar.HOUR_OF_DAY)) {
         in 0..11 -> "Good morning"
@@ -205,7 +196,7 @@ fun HomeScreen(viewModel: CompanionViewModel, onAction: (NavigationTab) -> Unit)
         modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Header with Profile Icon
+        // Header
         Row(
             verticalAlignment = Alignment.CenterVertically, 
             modifier = Modifier.fillMaxWidth(),
@@ -215,148 +206,110 @@ fun HomeScreen(viewModel: CompanionViewModel, onAction: (NavigationTab) -> Unit)
                 Student360Branding.Logo(size = 40.dp, showText = false)
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text("$greeting, ${user?.firstName} !", color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Black)
-                    Text("Your financial overview.", color = CoralOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("$greeting, ${user?.firstName ?: "Student"}!", color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("Your Student360 Dashboard", color = CoralOrange, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
             }
 
-            var showProfileMenu by remember { mutableStateOf(false) }
-            Box {
-                IconButton(onClick = { showProfileMenu = true }) {
-                    Icon(
-                        imageVector = Icons.Default.AccountCircle,
-                        contentDescription = "Account",
-                        tint = CoralOrange,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-                DropdownMenu(
-                    expanded = showProfileMenu,
-                    onDismissRequest = { showProfileMenu = false },
-                    offset = androidx.compose.ui.unit.DpOffset(0.dp, 8.dp),
-                    containerColor = NavySurface
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Profile", color = Color.White) },
-                        leadingIcon = { Icon(Icons.Default.Person, null, tint = CoralOrange) },
-                        onClick = { 
-                            showProfileMenu = false
-                            onAction(NavigationTab.MORE) 
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Logout", color = Color.Red) },
-                        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, null, tint = Color.Red) },
-                        onClick = { 
-                            showProfileMenu = false
-                            viewModel.logout()
-                        }
-                    )
-                }
+            IconButton(onClick = { viewModel.activeMoreModal = "Profile" }) {
+                Icon(
+                    imageVector = Icons.Default.AccountCircle,
+                    contentDescription = "Profile",
+                    tint = CoralOrange,
+                    modifier = Modifier.size(36.dp)
+                )
             }
         }
 
-        // 1. Allowance Gauge
-        Card(colors = CardDefaults.cardColors(containerColor = NavySurface), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+        // 1. Allowance Gauge (Requirement 3)
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
             Row(modifier = Modifier.padding(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                AllowanceProgressRing(spent = totalSpent, total = allowance, modifier = Modifier.size(100.dp))
+                AllowanceProgressRing(spent = stats.totalSpent, total = stats.allowance, modifier = Modifier.size(100.dp))
                 Spacer(modifier = Modifier.width(24.dp))
                 Column {
-                    Text("Remaining Balance", color = TextMuted, fontSize = 12.sp)
-                    Text("P${remaining.toInt()}", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
-                    Text("Goal: P${allowance.toInt()}", color = CoralOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("Remaining Available", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    Text("P${stats.remaining.toInt()}", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                    Text("Allowance: ${if(stats.allowance > 0) "P${stats.allowance.toInt()}" else "Not set"}", color = CoralOrange, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
 
-        // 2 & 3. Breakdown Donut & Weekly Trend Bars
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Card(colors = CardDefaults.cardColors(containerColor = NavySurface), shape = RoundedCornerShape(20.dp), modifier = Modifier.weight(1.1f)) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Categories", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SpendingDonutChart(categories = categoryBreakdown.ifEmpty { mapOf("Other" to 1.0) }, modifier = Modifier.fillMaxWidth())
-                }
-            }
-            Card(colors = CardDefaults.cardColors(containerColor = NavySurface), shape = RoundedCornerShape(20.dp), modifier = Modifier.weight(0.9f)) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Weekly", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SimpleBarChart(data = weeklySpending, modifier = Modifier.height(100.dp))
-                }
-            }
+        // Stats Grid (Requirement 3)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatCard(label = "Allocated", value = "P${stats.allocated.toInt()}", icon = Icons.Default.PieChart, modifier = Modifier.weight(1f))
+            StatCard(label = "Committed", value = "P${stats.committed.toInt()}", icon = Icons.Default.Lock, modifier = Modifier.weight(1f))
         }
 
-        // 4. Budget Comparison Bars
-        Card(colors = CardDefaults.cardColors(containerColor = NavySurface), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+        // 2 & 3. Breakdown Donut & Weekly Trend Bars (Requirement 5 & 6)
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text("Budget Performance", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Spending Category Analysis", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(16.dp))
-                CategoryComparisonChart(allocations = allocations, modifier = Modifier.fillMaxWidth())
+                SpendingDonutChart(categories = categoryBreakdown, modifier = Modifier.fillMaxWidth())
             }
         }
 
-        // AI Advice
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Text("Weekly Spending", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Spacer(modifier = Modifier.height(16.dp))
+                SimpleBarChart(data = weeklySpending, modifier = Modifier.height(150.dp))
+            }
+        }
+
+        // AI Insight
         val insight by viewModel.dashboardInsight.collectAsStateWithLifecycle()
-        Card(colors = CardDefaults.cardColors(containerColor = NavyPrimary.copy(alpha = 0.5f)), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, CoralOrange.copy(alpha = 0.3f))) {
+        Card(colors = CardDefaults.cardColors(containerColor = CoralOrange.copy(alpha = 0.1f)), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, CoralOrange.copy(alpha = 0.2f))) {
             Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.AutoAwesome, null, tint = CoralOrange)
                 Spacer(modifier = Modifier.width(16.dp))
-                Text(insight, color = TextPrimary, fontSize = 13.sp, lineHeight = 18.sp)
+                Text(insight, color = TextPrimary, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onAction(NavigationTab.BUDGET) }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = CoralOrange)) {
-                Text("Manage Budget", fontSize = 11.sp)
-            }
-            OutlinedButton(onClick = { launcher.launch("*/*") }, modifier = Modifier.weight(1f)) {
-                Text("Add Statement", fontSize = 11.sp, color = Color.White)
-            }
-        }
-
-        Text("Upcoming Tasks", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        val recurring by viewModel.recurringExpenses.collectAsStateWithLifecycle()
-        if (recurring.none { !it.isPaid }) {
-            Text("No pending payments today.", color = TextMuted, fontSize = 13.sp)
+        // Quick Actions (Requirement 2)
+        if (stats.transactionCount == 0 && stats.allowance == 0.0) {
+            EmptyDashboardActions(onAction = onAction, onUpload = { launcher.launch("*/*") })
         } else {
-            recurring.filter { !it.isPaid }.take(2).forEach { exp -> UpcomingPaymentRow(exp, viewModel) }
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { onAction(NavigationTab.BUDGET) }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = CoralOrange), shape = RoundedCornerShape(12.dp)) {
+                    Text("Budget Planner", fontWeight = FontWeight.Bold)
+                }
+                OutlinedButton(onClick = { onAction(NavigationTab.EXPENSES) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) {
+                    Text("View History", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
         }
+
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
-/**
- * SHARED COMPONENTS
- */
 @Composable
-fun UpcomingPaymentRow(expense: RecurringExpense, viewModel: CompanionViewModel) {
-    val context = LocalContext.current
-    val today = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
-    val status = when {
-        expense.isPaid -> "Paid"
-        expense.dueDate < today -> "Overdue"
-        expense.dueDate == today -> "Due Today"
-        else -> "Upcoming"
+fun StatCard(label: String, value: String, icon: ImageVector, modifier: Modifier) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(16.dp), modifier = modifier) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Icon(icon, null, tint = CoralOrange, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(label, color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+            Text(value, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        }
     }
-    Card(colors = CardDefaults.cardColors(containerColor = NavySurface), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
-        Row(modifier = Modifier.padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column {
-                Text(expense.name, color = TextPrimary, fontWeight = FontWeight.Bold)
-                Text("Due: ${expense.dueDate} • $status", color = if(status == "Overdue") Color.Red else TextMuted, fontSize = 12.sp)
+}
+
+@Composable
+fun EmptyDashboardActions(onAction: (NavigationTab) -> Unit, onUpload: () -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Get started with your finances:", color = TextMuted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+        Button(onClick = { onAction(NavigationTab.BUDGET) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = CoralOrange)) {
+            Text("Set Allowance")
+        }
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = { onAction(NavigationTab.EXPENSES) }, modifier = Modifier.weight(1f)) {
+                Text("Add Expense", color = Color.White)
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("P${expense.amount.toInt()}", color = GoldOrange, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.width(12.dp))
-                Button(
-                    onClick = { MockPaymentService.initiatePayment(context, expense.name, expense.amount) { viewModel.markRecurringAsPaid(expense) } },
-                    enabled = !expense.isPaid,
-                    colors = ButtonDefaults.buttonColors(containerColor = CoralOrange),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                    modifier = Modifier.height(32.dp)
-                ) {
-                    Text(if (expense.isPaid) "Done" else "Pay", fontSize = 10.sp, fontWeight = FontWeight.Black)
-                }
+            OutlinedButton(onClick = onUpload, modifier = Modifier.weight(1f)) {
+                Text("Upload Statement", color = Color.White)
             }
         }
     }
@@ -379,15 +332,15 @@ fun ExpensesScreen(viewModel: CompanionViewModel, onScanClick: () -> Unit) {
     }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Transactions", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Black)
+        Text("Transaction History", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            ExpenseActionButton(icon = Icons.Default.CameraAlt, label = "Capture Receipt", modifier = Modifier.weight(1f), onClick = onScanClick)
-            ExpenseActionButton(icon = Icons.Default.FileUpload, label = "Import Log", modifier = Modifier.weight(1f), onClick = { launcher.launch("*/*") })
+            ExpenseActionButton(icon = Icons.Default.CameraAlt, label = "Scan Receipt", modifier = Modifier.weight(1f), onClick = onScanClick)
+            ExpenseActionButton(icon = Icons.Default.FileUpload, label = "Import Bank", modifier = Modifier.weight(1f), onClick = { launcher.launch("*/*") })
         }
         Spacer(modifier = Modifier.height(16.dp))
         if (expenses.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No history found.", color = TextMuted) }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No transactions recorded yet.", color = TextMuted, fontWeight = FontWeight.Medium) }
         } else {
             LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.weight(1f)) {
                 items(expenses) { expense -> ExpenseCard(expense, onDelete = { viewModel.deleteExpense(expense) }) }
@@ -398,10 +351,10 @@ fun ExpensesScreen(viewModel: CompanionViewModel, onScanClick: () -> Unit) {
 
 @Composable
 fun ExpenseActionButton(icon: ImageVector, label: String, modifier: Modifier, onClick: () -> Unit) {
-    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = NavySurface), shape = RoundedCornerShape(12.dp), modifier = modifier.height(60.dp), border = BorderStroke(1.dp, CoralOrange.copy(alpha = 0.4f))) {
+    Button(onClick = onClick, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(12.dp), modifier = modifier.height(64.dp), border = BorderStroke(1.dp, CoralOrange.copy(alpha = 0.3f))) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(icon, null, tint = CoralOrange, modifier = Modifier.size(20.dp))
-            Text(label, color = TextPrimary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+            Icon(icon, null, tint = CoralOrange, modifier = Modifier.size(24.dp))
+            Text(label, color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -409,29 +362,29 @@ fun ExpenseActionButton(icon: ImageVector, label: String, modifier: Modifier, on
 @Composable
 fun ExpenseCard(expense: Expense, onDelete: () -> Unit) {
     var showOptions by remember { mutableStateOf(false) }
-    Card(colors = CardDefaults.cardColors(containerColor = NavySurface), shape = RoundedCornerShape(16.dp), onClick = { showOptions = true }) {
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(16.dp), onClick = { showOptions = true }) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(40.dp).background(NavyPrimary, CircleShape), contentAlignment = Alignment.Center) {
-                    Icon(imageVector = when(expense.category) { "Groceries" -> Icons.Default.ShoppingCart; "Data/WiFi" -> Icons.Default.Wifi; "Transport" -> Icons.Default.DirectionsBus; "Rent" -> Icons.Default.Home; else -> Icons.Default.Receipt }, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(20.dp))
+                Box(modifier = Modifier.size(40.dp).background(CoralOrange.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+                    Icon(imageVector = when(expense.category) { "Groceries" -> Icons.Default.ShoppingCart; "Data/WiFi" -> Icons.Default.Wifi; "Transport" -> Icons.Default.DirectionsBus; "Rent" -> Icons.Default.Home; "Food" -> Icons.Default.Restaurant; else -> Icons.Default.Receipt }, contentDescription = null, tint = CoralOrange, modifier = Modifier.size(20.dp))
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(expense.merchant, color = TextPrimary, fontWeight = FontWeight.Bold)
-                    Text("${expense.date} • ${expense.category}", color = TextMuted, fontSize = 12.sp)
+                    Text("${expense.date} • ${expense.category}", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 }
             }
-            Text("P${String.format("%.2f", expense.amount)}", color = GoldOrange, fontWeight = FontWeight.Black, fontSize = 16.sp)
+            Text("P${String.format("%.2f", expense.amount)}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
     }
     if (showOptions) {
         AlertDialog(
             onDismissRequest = { showOptions = false },
-            title = { Text("Clean up?") },
-            text = { Text("Would you like to remove this entry?") },
+            title = { Text("Delete Transaction") },
+            text = { Text("Are you sure you want to remove this record?") },
             confirmButton = { TextButton(onClick = { onDelete(); showOptions = false }) { Text("Delete", color = Color.Red) } },
             dismissButton = { TextButton(onClick = { showOptions = false }) { Text("Cancel") } },
-            containerColor = NavySurface, titleContentColor = Color.White, textContentColor = TextMuted
+            containerColor = MaterialTheme.colorScheme.surface, titleContentColor = Color.White, textContentColor = TextMuted
         )
     }
 }
@@ -442,43 +395,48 @@ fun ExpenseCard(expense: Expense, onDelete: () -> Unit) {
 @Composable
 fun BudgetScreen(viewModel: CompanionViewModel) {
     val allocations by viewModel.budgetAllocations.collectAsStateWithLifecycle()
-    val user by viewModel.userProfile.collectAsStateWithLifecycle()
+    val stats by viewModel.dashboardStats.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState(initial = viewModel.budgetScrollValue)
     LaunchedEffect(scrollState.value) { viewModel.budgetScrollValue = scrollState.value }
     
     val context = LocalContext.current
     var showAddDialog by remember { mutableStateOf(false) }
     var editingAllocation by remember { mutableStateOf<BudgetAllocation?>(null) }
-    val allowance = user?.monthlyAllowance ?: 0.0
-    val totalAllocated = allocations.sumOf { it.allocatedAmount }
-    val remainingToAllocate = allowance - totalAllocated
     val scope = rememberCoroutineScope()
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Budget Planner", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Black)
-        Card(colors = CardDefaults.cardColors(containerColor = NavySurface), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
+        Text("Allowance Allocator", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Monthly Allowance", color = TextMuted, fontSize = 12.sp)
+                Text("Monthly Allowance", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                 if (viewModel.isEditingAllowance) {
-                    OutlinedTextField(value = viewModel.allowanceInput, onValueChange = { viewModel.allowanceInput = it }, modifier = Modifier.fillMaxWidth(), colors = authFieldColors())
-                    Button(onClick = { viewModel.setAllowance(viewModel.allowanceInput.toDoubleOrNull() ?: 0.0); viewModel.isEditingAllowance = false }, colors = ButtonDefaults.buttonColors(CoralOrange)) { Text("Set Goal") }
+                    OutlinedTextField(value = viewModel.allowanceInput, onValueChange = { viewModel.allowanceInput = it }, modifier = Modifier.fillMaxWidth(), colors = authFieldColors(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = { viewModel.setAllowance(viewModel.allowanceInput.toDoubleOrNull() ?: 0.0); viewModel.isEditingAllowance = false }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.fillMaxWidth()) { Text("Save Allowance", fontWeight = FontWeight.Bold) }
                 } else {
-                    Text("P${allowance.toInt()}", color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Black)
-                    TextButton(onClick = { viewModel.isEditingAllowance = true }) { Text(if(allowance <= 0) "Define Allowance" else "Modify Limit", color = CoralOrange) }
+                    Text("P${stats.allowance.toInt()}", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.Bold)
+                    TextButton(onClick = { viewModel.isEditingAllowance = true }) { Text(if(stats.allowance <= 0) "Set Allowance" else "Edit Allowance", color = CoralOrange, fontWeight = FontWeight.Bold) }
                 }
                 Spacer(Modifier.height(16.dp))
-                Text("Setup: P${totalAllocated.toInt()} / Left: P${remainingToAllocate.toInt()}", color = if(remainingToAllocate < 0) Color.Red else Color.Green, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                val remainingToAllocate = stats.allowance - stats.allocated
+                Text("Allocated: P${stats.allocated.toInt()} | Left: P${remainingToAllocate.toInt()}", color = if(remainingToAllocate < 0) Color.Red else Color.Green, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                if (remainingToAllocate < 0) {
+                    Text("Warning: Allocations exceed allowance!", color = Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                }
             }
         }
+        
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Budget Bricks", color = TextPrimary, fontWeight = FontWeight.Bold)
-            Button(onClick = { showAddDialog = true }, colors = ButtonDefaults.buttonColors(CoralOrange)) { Icon(Icons.Default.Add, null); Text("Create") }
+            Text("Budget Bricks", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            Button(onClick = { showAddDialog = true }, colors = ButtonDefaults.buttonColors(CoralOrange), shape = RoundedCornerShape(8.dp)) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(4.dp)); Text("Add", fontWeight = FontWeight.Bold) }
         }
-        if (allocations.isEmpty()) { Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) { Text("Empty budget.", color = TextMuted) } }
+        
+        if (allocations.isEmpty()) { Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) { Text("No budget allocations yet.", color = TextMuted, fontWeight = FontWeight.Medium) } }
         else { allocations.forEach { allocation -> BudgetCategoryIndicator(allocation = allocation, onDelete = { viewModel.deleteAllocation(allocation) }, onEdit = { editingAllocation = allocation }, onAdjust = { viewModel.updateAllocation(allocation.copy(allocatedAmount = it)) }) } }
-        Spacer(modifier = Modifier.height(16.dp))
+        
+        Spacer(modifier = Modifier.height(8.dp))
         Button(onClick = { scope.launch { val advice = viewModel.optimizeBudget(); Toast.makeText(context, advice, Toast.LENGTH_LONG).show() } }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BlueAccent), shape = RoundedCornerShape(12.dp)) {
-            Icon(Icons.Default.AutoAwesome, null); Spacer(Modifier.width(8.dp)); Text("AI Optimize", color = Color.White, fontWeight = FontWeight.Bold)
+            Icon(Icons.Default.AutoAwesome, null); Spacer(Modifier.width(8.dp)); Text("AI Optimize Budget", color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
     if (showAddDialog) { AllocationDialog(onDismiss = { showAddDialog = false }, onSave = { n, a, c, r, d -> viewModel.addAllocation(n, a, c, r, d); showAddDialog = false }) }
@@ -489,13 +447,23 @@ fun BudgetScreen(viewModel: CompanionViewModel) {
 fun BudgetCategoryIndicator(allocation: BudgetAllocation, onDelete: () -> Unit, onEdit: () -> Unit, onAdjust: (Double) -> Unit) {
     val progress = if (allocation.allocatedAmount > 0) (allocation.spentAmount / allocation.allocatedAmount).toFloat().coerceIn(0f, 1f) else 0f
     val remaining = allocation.allocatedAmount - allocation.spentAmount
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.background(NavyPrimary.copy(alpha = 0.2f), RoundedCornerShape(12.dp)).padding(12.dp)) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f).clickable { onEdit() }) { Text(allocation.name, color = TextPrimary, fontWeight = FontWeight.Bold); Text(allocation.category, color = TextMuted, fontSize = 10.sp) }
-            Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = { onAdjust(allocation.allocatedAmount - 10) }) { Icon(Icons.Default.Remove, null, tint = CoralOrange) }; Text("P${allocation.allocatedAmount.toInt()}", color = TextPrimary, fontWeight = FontWeight.Bold); IconButton(onClick = { onAdjust(allocation.allocatedAmount + 10) }) { Icon(Icons.Default.Add, null, tint = CoralOrange) }; IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, tint = Color.Gray, modifier = Modifier.size(18.dp)) } }
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)), shape = RoundedCornerShape(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f).clickable { onEdit() }) { Text(allocation.name, color = TextPrimary, fontWeight = FontWeight.Bold); Text(allocation.category, color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium) }
+                Row(verticalAlignment = Alignment.CenterVertically) { 
+                    IconButton(onClick = { onAdjust((allocation.allocatedAmount - 50).coerceAtLeast(0.0)) }) { Icon(Icons.Default.Remove, null, tint = CoralOrange) }
+                    Text("P${allocation.allocatedAmount.toInt()}", color = TextPrimary, fontWeight = FontWeight.Bold)
+                    IconButton(onClick = { onAdjust(allocation.allocatedAmount + 50) }) { Icon(Icons.Default.Add, null, tint = CoralOrange) }
+                    IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, null, tint = Color.Gray, modifier = Modifier.size(20.dp)) }
+                }
+            }
+            LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = if (progress > 0.9f) Color.Red else CoralOrange, trackColor = NavyPrimary)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { 
+                Text("Used: P${allocation.spentAmount.toInt()}", color = TextMuted, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                Text(text = if (remaining >= 0) "P${remaining.toInt()} left" else "P${(-remaining).toInt()} excess", color = if (remaining >= 0) Color.Green else Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold) 
+            }
         }
-        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = if (progress > 0.9f) Color.Red else CoralOrange, trackColor = NavyPrimary)
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("Used: P${allocation.spentAmount.toInt()}", color = TextMuted, fontSize = 11.sp); Text(text = if (remaining >= 0) "P${remaining.toInt()} left" else "P${(-remaining).toInt()} excess", color = if (remaining >= 0) Color.Green else Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold) }
     }
 }
 
@@ -506,54 +474,94 @@ fun AllocationDialog(allocation: BudgetAllocation? = null, onDismiss: () -> Unit
     var category by remember { mutableStateOf(allocation?.category ?: "Groceries") }
     var isRecurring by remember { mutableStateOf(allocation?.isRecurring ?: false) }
     var day by remember { mutableStateOf(allocation?.dueDate?.toString() ?: "") }
-    val categories = listOf("Rent", "Transport", "Groceries", "Connectivity", "Food", "Study", "Fun", "Saving", "Urgent", "Misc")
+    val categories = listOf("Rent", "Transport", "Groceries", "Data/WiFi", "Airtime", "Food", "Education", "Entertainment", "Shopping", "Savings", "Emergency", "Other")
+    
     Dialog(onDismissRequest = onDismiss) {
-        Card(colors = CardDefaults.cardColors(NavySurface), shape = RoundedCornerShape(24.dp)) {
-            Column(Modifier.padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(if(allocation == null) "New Allocation" else "Update Item", color = Color.White, fontWeight = FontWeight.Black, fontSize = 20.sp)
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Label") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Limit (P)") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
-                Text("Type", color = TextMuted, fontSize = 12.sp)
-                var expanded by remember { mutableStateOf(false) }
-                Box { TextButton(onClick = { expanded = true }) { Text(category, color = CoralOrange) }; DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) { categories.forEach { cat -> DropdownMenuItem(text = { Text(cat) }, onClick = { category = cat; expanded = false }) } } }
-                Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = isRecurring, onCheckedChange = { isRecurring = it }, colors = CheckboxDefaults.colors(checkedColor = CoralOrange)); Text("Monthly Repeat?", color = Color.White) }
-                if (isRecurring) { OutlinedTextField(value = day, onValueChange = { day = it }, label = { Text("Day of Month") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth()) }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { TextButton(onClick = onDismiss, Modifier.weight(1f)) { Text("Back", color = TextMuted) }; Button(onClick = { onSave(name, amount.toDoubleOrNull() ?: 0.0, category, isRecurring, day.toIntOrNull()) }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.weight(1f)) { Text("Lock In") } }
+        Card(colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(24.dp)) {
+            Column(Modifier.padding(24.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(if(allocation == null) "New Allocation" else "Edit Allocation", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Expense Name") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (P)") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                
+                Column {
+                    Text("Category", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    var expanded by remember { mutableStateOf(false) }
+                    Box(modifier = Modifier.fillMaxWidth().clickable { expanded = true }.background(NavyPrimary.copy(alpha = 0.3f), RoundedCornerShape(8.dp)).padding(12.dp)) {
+                        Text(category, color = Color.White, fontWeight = FontWeight.Medium)
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, containerColor = MaterialTheme.colorScheme.surface) {
+                            categories.forEach { cat -> DropdownMenuItem(text = { Text(cat, color = Color.White) }, onClick = { category = cat; expanded = false }) }
+                        }
+                    }
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) { 
+                    Checkbox(checked = isRecurring, onCheckedChange = { isRecurring = it }, colors = CheckboxDefaults.colors(checkedColor = CoralOrange))
+                    Text("Recurring Monthly Expense", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium) 
+                }
+                
+                if (isRecurring) { 
+                    OutlinedTextField(value = day, onValueChange = { day = it }, label = { Text("Due Day (1-31)") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number) ) 
+                }
+                
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+                    TextButton(onClick = onDismiss, Modifier.weight(1f)) { Text("Cancel", color = TextMuted, fontWeight = FontWeight.Bold) }
+                    Button(onClick = { onSave(name, amount.toDoubleOrNull() ?: 0.0, category, isRecurring, day.toIntOrNull()) }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.weight(1f), shape = RoundedCornerShape(8.dp)) { Text("Save", fontWeight = FontWeight.Bold) }
+                }
             }
         }
     }
 }
 
 /**
- * ORBIT SCREEN - AI Chat
+ * ORBIT SCREEN
  */
 @Composable
 fun OrbitScreen(viewModel: CompanionViewModel) {
     val isThinking by viewModel.isThinking.collectAsStateWithLifecycle()
     val chatMessages = viewModel.chatMessages
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = viewModel.orbitScrollIndex, initialFirstVisibleItemScrollOffset = viewModel.orbitScrollOffset)
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }.collect { viewModel.orbitScrollIndex = it.first; viewModel.orbitScrollOffset = it.second }
+    
+    val quickPrompts = listOf("How am I spending?", "Can I afford P200?", "Savings advice", "Budget check", "Need vs Want")
+    
+    LaunchedEffect(chatMessages.size, isThinking) { 
+        if (chatMessages.isNotEmpty() || isThinking) { 
+            listState.animateScrollToItem((chatMessages.size - 1 + if(isThinking) 1 else 0).coerceAtLeast(0)) 
+        } 
     }
-    val quickPrompts = listOf("Scan my lifestyle", "Burn rate?", "Savings tip", "Budget check", "Am I safe?", "Rebalance")
-    LaunchedEffect(chatMessages.size, isThinking) { if (chatMessages.isNotEmpty() || isThinking) { listState.animateScrollToItem((chatMessages.size - 1 + if(isThinking) 1 else 0).coerceAtLeast(0)) } }
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Orbit Intelligence", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Black)
-        LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Orbit AI Advisor", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(chatMessages) { (sender, text) ->
                 val isAI = sender == "AI"
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = if (isAI) Arrangement.Start else Arrangement.End) {
-                    Card(colors = CardDefaults.cardColors(containerColor = if (isAI) NavySurface else CoralOrange), shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = if (isAI) 0.dp else 16.dp, bottomEnd = if (isAI) 16.dp else 0.dp), modifier = Modifier.widthIn(max = 280.dp)) { Text(text, modifier = Modifier.padding(12.dp), color = Color.White, fontSize = 14.sp) }
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = if (isAI) MaterialTheme.colorScheme.surface else CoralOrange), 
+                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = if (isAI) 2.dp else 16.dp, bottomEnd = if (isAI) 16.dp else 2.dp), 
+                        modifier = Modifier.widthIn(max = 300.dp)
+                    ) { 
+                        Text(text, modifier = Modifier.padding(14.dp), color = Color.White, fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.Medium) 
+                    }
                 }
             }
             if (isThinking) { item { AIThinkingIndicator() } }
         }
-        LazyRow(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { items(quickPrompts) { prompt -> SuggestionChip(onClick = { viewModel.sendMessage(prompt) }, label = { Text(prompt, fontSize = 10.sp, color = Color.White) }, colors = SuggestionChipDefaults.suggestionChipColors(containerColor = NavySurface), border = BorderStroke(1.dp, CoralOrange.copy(alpha = 0.3f))) } }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(value = viewModel.orbitMessage, onValueChange = { viewModel.orbitMessage = it }, modifier = Modifier.weight(1f), placeholder = { Text("Consult Orbit...", color = TextMuted) }, shape = RoundedCornerShape(24.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CoralOrange, unfocusedBorderColor = NavySurface, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, unfocusedContainerColor = NavySurface, focusedContainerColor = NavySurface))
+        
+        LazyRow(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { 
+            items(quickPrompts) { prompt -> SuggestionChip(onClick = { viewModel.sendMessage(prompt) }, label = { Text(prompt, fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Medium) }, colors = SuggestionChipDefaults.suggestionChipColors(containerColor = MaterialTheme.colorScheme.surface), border = BorderStroke(1.dp, CoralOrange.copy(alpha = 0.3f))) } 
+        }
+        
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+            OutlinedTextField(
+                value = viewModel.orbitMessage, 
+                onValueChange = { viewModel.orbitMessage = it }, 
+                modifier = Modifier.weight(1f), 
+                placeholder = { Text("Ask Orbit anything...", color = TextMuted) }, 
+                shape = RoundedCornerShape(28.dp), 
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CoralOrange, unfocusedBorderColor = MaterialTheme.colorScheme.surface, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, unfocusedContainerColor = MaterialTheme.colorScheme.surface, focusedContainerColor = MaterialTheme.colorScheme.surface)
+            )
             Spacer(modifier = Modifier.width(8.dp))
-            FloatingActionButton(onClick = { viewModel.sendMessage(viewModel.orbitMessage) }, containerColor = CoralOrange, contentColor = Color.White, shape = CircleShape, modifier = Modifier.size(48.dp)) { Icon(Icons.Default.Send, null) }
+            FloatingActionButton(onClick = { viewModel.sendMessage(viewModel.orbitMessage) }, containerColor = CoralOrange, contentColor = Color.White, shape = CircleShape, modifier = Modifier.size(52.dp)) { Icon(Icons.Default.Send, null) }
         }
     }
 }
@@ -561,13 +569,13 @@ fun OrbitScreen(viewModel: CompanionViewModel) {
 @Composable
 fun AIThinkingIndicator() {
     var dotIndex by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) { while (true) { delay(500); dotIndex = (dotIndex + 1) % 3 } }
+    LaunchedEffect(Unit) { while (true) { delay(400); dotIndex = (dotIndex + 1) % 3 } }
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-        Card(colors = CardDefaults.cardColors(containerColor = NavySurface), shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 0.dp, bottomEnd = 16.dp), modifier = Modifier.widthIn(max = 80.dp)) {
-            Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(if (dotIndex == 0) "●" else "○", color = Color.White, fontSize = 12.sp)
-                Text(if (dotIndex == 1) "●" else "○", color = Color.White, fontSize = 12.sp)
-                Text(if (dotIndex == 2) "●" else "○", color = Color.White, fontSize = 12.sp)
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 2.dp, bottomEnd = 16.dp), modifier = Modifier.widthIn(max = 80.dp)) {
+            Row(modifier = Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                repeat(3) { i ->
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(if (dotIndex == i) CoralOrange else TextMuted.copy(alpha = 0.5f)))
+                }
             }
         }
     }
@@ -580,35 +588,45 @@ fun AIThinkingIndicator() {
 fun MoreScreen(viewModel: CompanionViewModel) {
     val scrollState = rememberScrollState(initial = viewModel.moreScrollValue)
     LaunchedEffect(scrollState) { snapshotFlow { scrollState.value }.collect { viewModel.moreScrollValue = it } }
+    
     Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(scrollState), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Account", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Black)
-        MoreItem("Profile Hub", Icons.Default.Person) { viewModel.activeMoreModal = "Profile" }
-        MoreItem("Vault Goals", Icons.Default.Savings) { viewModel.activeMoreModal = "Savings" }
-        MoreItem("Ledger Calendar", Icons.Default.DateRange) { viewModel.activeMoreModal = "Calendar" }
-        MoreItem("Pending Dues", Icons.Default.Schedule) { viewModel.activeMoreModal = "Upcoming" }
-        MoreItem("Visual Reports", Icons.Default.Assessment) { viewModel.activeMoreModal = "Reports" }
-        MoreItem("Alert Controls", Icons.Default.Notifications) { viewModel.activeMoreModal = "Notifications" }
-        MoreItem("App Settings", Icons.Default.Settings) { viewModel.activeMoreModal = "Settings" }
-        MoreItem("Get Support", Icons.AutoMirrored.Filled.Help) { viewModel.activeMoreModal = "Help" }
-        MoreItem("Legal & Version", Icons.Default.Info) { viewModel.activeMoreModal = "About" }
+        Text("More Features", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        
+        MoreSectionHeader("Financial Tools")
+        MoreItem("Upcoming Payments", Icons.Default.Schedule) { viewModel.activeMoreModal = "Upcoming" }
+        MoreItem("Payment Calendar", Icons.Default.DateRange) { viewModel.activeMoreModal = "Calendar" }
+        MoreItem("Savings Goals", Icons.Default.Savings) { viewModel.activeMoreModal = "Savings" }
+        MoreItem("Financial Reports", Icons.Default.Assessment) { viewModel.activeMoreModal = "Reports" }
+        
+        MoreSectionHeader("Application")
+        MoreItem("Settings", Icons.Default.Settings) { viewModel.activeMoreModal = "Settings" }
+        MoreItem("Help & Support", Icons.AutoMirrored.Filled.Help) { viewModel.activeMoreModal = "Help" }
+        MoreItem("Terms & Privacy", Icons.Default.Info) { viewModel.activeMoreModal = "About" }
+        
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = { viewModel.logout() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary)) { Text("Sign Out") }
+        Button(onClick = { viewModel.logout() }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = NavyPrimary), shape = RoundedCornerShape(12.dp)) { 
+            Icon(Icons.AutoMirrored.Filled.Logout, null)
+            Spacer(Modifier.width(8.dp))
+            Text("Sign Out", fontWeight = FontWeight.Bold) 
+        }
+        Spacer(Modifier.height(40.dp))
     }
+    
     viewModel.activeMoreModal?.let { modal ->
         Dialog(onDismissRequest = { viewModel.activeMoreModal = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-            Box(Modifier.fillMaxSize().background(NavyBackground).padding(16.dp)) {
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(16.dp)) {
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         IconButton(onClick = { viewModel.activeMoreModal = null }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White) }
-                        Text(modal, color = Color.White, fontWeight = FontWeight.Black, fontSize = 20.sp)
+                        Text(modal, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     }
                     Spacer(Modifier.height(16.dp))
                     when(modal) {
                         "Profile" -> ProfileView(viewModel)
+                        "Settings" -> SettingsView(viewModel)
                         "Savings" -> SavingsView(viewModel)
                         "Calendar" -> CalendarView(viewModel)
                         "Upcoming" -> UpcomingPaymentsListView(viewModel)
-                        "Notifications" -> NotificationsView(viewModel)
                         "Reports" -> ReportsView(viewModel)
                         else -> ComingSoonView(modal)
                     }
@@ -619,12 +637,17 @@ fun MoreScreen(viewModel: CompanionViewModel) {
 }
 
 @Composable
+fun MoreSectionHeader(title: String) {
+    Text(title, color = CoralOrange, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
+}
+
+@Composable
 fun MoreItem(title: String, icon: ImageVector, onClick: () -> Unit) {
-    Surface(onClick = onClick, color = NavySurface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+    Surface(onClick = onClick, color = MaterialTheme.colorScheme.surface, shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
         Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, tint = CoralOrange, modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(16.dp))
-            Text(title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+            Text(title, color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             Spacer(modifier = Modifier.weight(1f))
             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = TextMuted)
         }
@@ -634,23 +657,113 @@ fun MoreItem(title: String, icon: ImageVector, onClick: () -> Unit) {
 @Composable
 fun ProfileView(viewModel: CompanionViewModel) {
     val user by viewModel.userProfile.collectAsStateWithLifecycle()
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        ProfileField("User", user?.firstName ?: "")
-        ProfileField("Surname", user?.lastName ?: "")
-        ProfileField("Contact", user?.email ?: "")
-        ProfileField("Campus", user?.institution ?: "")
-        ProfileField("Monthly Fund", "P${user?.monthlyAllowance?.toInt()}")
-        Spacer(Modifier.height(24.dp))
-        Button(onClick = { /* Edit logic */ }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.fillMaxWidth()) { Text("Update Profile") }
+    var isEditing by remember { mutableStateOf(false) }
+    
+    var firstName by remember { mutableStateOf(user?.firstName ?: "") }
+    var lastName by remember { mutableStateOf(user?.lastName ?: "") }
+    var email by remember { mutableStateOf(user?.email ?: "") }
+    var institution by remember { mutableStateOf(user?.institution ?: "") }
+    var allowance by remember { mutableStateOf(user?.monthlyAllowance?.toInt()?.toString() ?: "") }
+
+    Column(verticalArrangement = Arrangement.spacedBy(20.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+        // Profile Header (Requirement 14)
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.AccountCircle, null, tint = CoralOrange, modifier = Modifier.size(100.dp))
+                Spacer(Modifier.height(12.dp))
+                Text("${user?.firstName ?: ""} ${user?.lastName ?: ""}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+                Text(user?.email ?: "", color = TextMuted, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+        
+        Spacer(Modifier.height(12.dp))
+
+        if (isEditing) {
+            OutlinedTextField(value = firstName, onValueChange = { firstName = it }, label = { Text("First Name") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = lastName, onValueChange = { lastName = it }, label = { Text("Last Name") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = institution, onValueChange = { institution = it }, label = { Text("Institution") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(value = allowance, onValueChange = { allowance = it }, label = { Text("Monthly Allowance") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+            
+            Button(onClick = { 
+                viewModel.updateProfileDetails(firstName, lastName, email, institution, allowance.toDoubleOrNull() ?: 0.0)
+                isEditing = false 
+            }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                Text("Save Changes", fontWeight = FontWeight.Bold)
+            }
+            TextButton(onClick = { isEditing = false }, modifier = Modifier.fillMaxWidth()) { Text("Cancel", color = TextMuted) }
+        } else {
+            ProfileField("First Name", user?.firstName ?: "")
+            ProfileField("Last Name", user?.lastName ?: "")
+            ProfileField("Email Address", user?.email ?: "")
+            ProfileField("Institution", user?.institution ?: "")
+            ProfileField("Monthly Allowance", "P${user?.monthlyAllowance?.toInt()}")
+            
+            Button(onClick = { isEditing = true }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { 
+                Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Edit Profile", fontWeight = FontWeight.Bold) 
+            }
+        }
+    }
+}
+
+@Composable
+fun SettingsView(viewModel: CompanionViewModel) {
+    val user by viewModel.userProfile.collectAsStateWithLifecycle()
+    Column(verticalArrangement = Arrangement.spacedBy(24.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+        // Appearance (Requirement 16)
+        Column {
+            Text("Appearance", color = CoralOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Dark Mode", color = Color.White, fontWeight = FontWeight.Medium)
+                Switch(checked = user?.isDarkMode ?: true, onCheckedChange = { viewModel.updateTheme(it) }, colors = SwitchDefaults.colors(checkedThumbColor = CoralOrange))
+            }
+        }
+        
+        // Notifications (Requirement 17)
+        Column {
+            Text("Notifications", color = CoralOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(Modifier.height(8.dp))
+            NotificationToggle("Payment Reminders", user?.rentReminder ?: true) { viewModel.updateNotificationSetting("rent", it) }
+            NotificationToggle("Budget Alerts", user?.budgetAlerts ?: true) { viewModel.updateNotificationSetting("budget", it) }
+            NotificationToggle("Savings Reminders", user?.savingsReminders ?: true) { viewModel.updateNotificationSetting("savings", it) }
+        }
+        
+        // Privacy & Security (Requirement 19)
+        Column {
+            Text("Privacy & Security", color = CoralOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Spacer(Modifier.height(8.dp))
+            MoreItemSmall("Change Password", Icons.Default.Lock) { /* Implementation */ }
+            MoreItemSmall("Privacy Policy", Icons.Default.Security) { /* Implementation */ }
+        }
+    }
+}
+
+@Composable
+fun MoreItemSmall(title: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(modifier = Modifier.fillMaxWidth().clickable { onClick() }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = TextMuted, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(16.dp))
+        Text(title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
     }
 }
 
 @Composable
 fun ProfileField(label: String, value: String) {
-    Column {
-        Text(label, color = TextMuted, fontSize = 12.sp)
-        Text(value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        HorizontalDivider(color = NavyPrimary, modifier = Modifier.padding(top = 8.dp))
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Text(label, color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(4.dp))
+        Text(value, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        HorizontalDivider(color = MaterialTheme.colorScheme.surface, modifier = Modifier.padding(top = 12.dp))
+    }
+}
+
+@Composable
+fun NotificationToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = Color.White, fontWeight = FontWeight.Medium); Switch(checked = checked, onCheckedChange = onCheckedChange, colors = SwitchDefaults.colors(checkedThumbColor = CoralOrange))
     }
 }
 
@@ -659,29 +772,47 @@ fun SavingsView(viewModel: CompanionViewModel) {
     val goals by viewModel.savingsGoals.collectAsStateWithLifecycle()
     var showAdd by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Button(onClick = { showAdd = true }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.fillMaxWidth()) { Text("Target New Goal") }
-        if (goals.isEmpty()) { Text("No active targets.", color = TextMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(32.dp)) }
-        else { goals.forEach { goal ->
-            Card(colors = CardDefaults.cardColors(NavySurface), shape = RoundedCornerShape(16.dp)) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(goal.name, color = Color.White, fontWeight = FontWeight.Bold); Text("P${goal.targetAmount.toInt()}", color = GoldOrange) }
-                    val progress = if (goal.targetAmount > 0) (goal.currentAmount / goal.targetAmount).toFloat().coerceIn(0f, 1f) else 0f
-                    LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape), color = GoldOrange, trackColor = NavyPrimary)
-                    Text("Funded: P${goal.currentAmount.toInt()} / P${goal.targetAmount.toInt()}", color = TextMuted, fontSize = 11.sp)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { TextButton(onClick = { viewModel.updateSavingsGoal(goal.copy(currentAmount = goal.currentAmount + 50)) }) { Text("+ P50", color = CoralOrange) } }
-                }
+        Button(onClick = { showAdd = true }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { 
+            Icon(Icons.Default.Add, null)
+            Spacer(Modifier.width(8.dp))
+            Text("Create Savings Goal", fontWeight = FontWeight.Bold) 
+        }
+        
+        if (goals.isEmpty()) { 
+            Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                Text("You haven't created a savings goal yet.", color = TextMuted, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium) 
             }
-        } }
+        } else { 
+            goals.forEach { goal ->
+                Card(colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(16.dp)) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { 
+                            Text(goal.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("P${goal.targetAmount.toInt()}", color = GoldOrange, fontWeight = FontWeight.Bold) 
+                        }
+                        val progress = if (goal.targetAmount > 0) (goal.currentAmount / goal.targetAmount).toFloat().coerceIn(0f, 1f) else 0f
+                        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape), color = GoldOrange, trackColor = NavyPrimary)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("P${goal.currentAmount.toInt()} saved", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Text("${(progress * 100).toInt()}%", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Button(onClick = { viewModel.updateSavingsGoal(goal.copy(currentAmount = goal.currentAmount + 100)) }, colors = ButtonDefaults.buttonColors(NavyPrimary), modifier = Modifier.fillMaxWidth()) {
+                            Text("Add P100 to Goal", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } 
+        }
     }
     if (showAdd) {
         Dialog(onDismissRequest = { showAdd = false }) {
-            Card(colors = CardDefaults.cardColors(NavySurface), shape = RoundedCornerShape(16.dp)) {
+            Card(colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(24.dp)) {
                 var name by remember { mutableStateOf("") }; var target by remember { mutableStateOf("") }
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("New Target", color = Color.White, fontWeight = FontWeight.Bold)
-                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Goal Name") }, colors = authFieldColors())
-                    OutlinedTextField(value = target, onValueChange = { target = it }, label = { Text("Target P") }, colors = authFieldColors())
-                    Button(onClick = { viewModel.addSavingsGoal(name, target.toDoubleOrNull() ?: 0.0); showAdd = false }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.fillMaxWidth()) { Text("Create") }
+                Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text("New Savings Goal", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Goal Name") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = target, onValueChange = { target = it }, label = { Text("Target Amount (P)") }, colors = authFieldColors(), modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    Button(onClick = { viewModel.addSavingsGoal(name, target.toDoubleOrNull() ?: 0.0); showAdd = false }, colors = ButtonDefaults.buttonColors(CoralOrange), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) { Text("Create Goal", fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -692,65 +823,122 @@ fun SavingsView(viewModel: CompanionViewModel) {
 fun CalendarView(viewModel: CompanionViewModel) {
     val recurring by viewModel.recurringExpenses.collectAsStateWithLifecycle()
     val today = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Payment Timeline", color = TextMuted, fontSize = 12.sp)
-        if (recurring.isEmpty()) { Text("Quiet calendar.", color = TextMuted, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(32.dp)) }
-        else { recurring.forEach { exp ->
-            val status = when { exp.isPaid -> "Paid"; exp.dueDate < today -> "Past Due"; exp.dueDate == today -> "Today"; else -> "Coming Up" }
-            val statusColor = when(status) { "Paid" -> Color.Green; "Past Due" -> Color.Red; "Today" -> GoldOrange; else -> CoralOrange }
-            Card(colors = CardDefaults.cardColors(NavySurface), shape = RoundedCornerShape(12.dp)) {
-                Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column { Text(exp.name, color = Color.White, fontWeight = FontWeight.Bold); Text("Day ${exp.dueDate}", color = TextMuted, fontSize = 12.sp); Text(status, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.Black) }
-                    Text("P${exp.amount.toInt()}", color = GoldOrange, fontWeight = FontWeight.Black)
-                }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+        if (recurring.isEmpty()) { 
+            Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                Text("No upcoming payments in your calendar.", color = TextMuted, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium) 
             }
-        } }
+        } else { 
+            recurring.forEach { exp ->
+                val status = when { exp.isPaid -> "Paid"; exp.dueDate < today -> "Overdue"; exp.dueDate == today -> "Due Today"; else -> "Upcoming" }
+                val statusColor = when(status) { "Paid" -> Color.Green; "Overdue" -> Color.Red; "Due Today" -> GoldOrange; else -> CoralOrange }
+                Card(colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(16.dp)) {
+                    Row(Modifier.padding(20.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) { 
+                            Text(exp.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("Due: Day ${exp.dueDate} of month", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            Spacer(Modifier.height(4.dp))
+                            Surface(color = statusColor.copy(alpha = 0.2f), shape = RoundedCornerShape(4.dp)) {
+                                Text(status, color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                            }
+                        }
+                        Text("P${exp.amount.toInt()}", color = GoldOrange, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    }
+                }
+            } 
+        }
     }
 }
 
 @Composable
 fun UpcomingPaymentsListView(viewModel: CompanionViewModel) {
     val recurring by viewModel.recurringExpenses.collectAsStateWithLifecycle()
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        recurring.filter { !it.isPaid }.forEach { UpcomingPaymentRow(it, viewModel) }
-        if (recurring.none { !it.isPaid }) { Text("All clear!", color = Color.Green, modifier = Modifier.padding(16.dp)) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
+        val pending = recurring.filter { !it.isPaid }
+        if (pending.isEmpty()) { 
+            Box(Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                Text("All clear! No upcoming payments.", color = Color.Green, fontWeight = FontWeight.Bold) 
+            }
+        } else {
+            pending.forEach { UpcomingPaymentRow(it, viewModel) }
+        }
     }
 }
 
 @Composable
-fun NotificationsView(viewModel: CompanionViewModel) {
-    val user by viewModel.userProfile.collectAsStateWithLifecycle()
-    Column {
-        Text("Smart alerts.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 16.dp))
-        NotificationToggle("Recurring Reminders", user?.rentReminder ?: true) { viewModel.updateProfile(user!!.copy(rentReminder = it)) }
-        NotificationToggle("Limit Alerts", user?.budgetAlerts ?: true) { viewModel.updateProfile(user!!.copy(budgetAlerts = it)) }
-        NotificationToggle("Vault Nudges", user?.savingsReminders ?: true) { viewModel.updateProfile(user!!.copy(savingsReminders = it)) }
+fun UpcomingPaymentRow(expense: RecurringExpense, viewModel: CompanionViewModel) {
+    val context = LocalContext.current
+    val today = Calendar.getInstance().get(Calendar.DAY_OF_MONTH)
+    val status = when {
+        expense.isPaid -> "Paid"
+        expense.dueDate < today -> "Overdue"
+        expense.dueDate == today -> "Due Today"
+        else -> "Upcoming"
     }
-}
-
-@Composable
-fun NotificationToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = Color.White); Switch(checked = checked, onCheckedChange = onCheckedChange, colors = SwitchDefaults.colors(checkedThumbColor = CoralOrange))
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(modifier = Modifier.padding(20.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(expense.name, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("P${expense.amount.toInt()} • Due Day ${expense.dueDate}", color = TextMuted, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                if (status == "Overdue") {
+                    Text("Overdue", color = Color.Red, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+            Button(
+                onClick = { MockPaymentService.initiatePayment(context, expense.name, expense.amount) { viewModel.markRecurringAsPaid(expense) } },
+                enabled = !expense.isPaid,
+                colors = ButtonDefaults.buttonColors(containerColor = CoralOrange),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Pay Now", fontWeight = FontWeight.Bold)
+            }
+        }
     }
 }
 
 @Composable
 fun ReportsView(viewModel: CompanionViewModel) {
-    val expenses by viewModel.expenses.collectAsStateWithLifecycle()
-    val categories = expenses.groupBy { it.category }.mapValues { it.value.sumOf { e -> e.amount } }
+    val stats by viewModel.dashboardStats.collectAsStateWithLifecycle()
+    val categoryBreakdown by viewModel.categoryBreakdown.collectAsStateWithLifecycle()
+    
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-        if (expenses.isEmpty()) { Icon(Icons.Default.Assessment, null, tint = GoldOrange, modifier = Modifier.size(64.dp)); Text("Insufficient data.", color = TextMuted) }
-        else {
-            Text("Category Density", color = Color.White, fontWeight = FontWeight.Bold)
-            SpendingDonutChart(categories, modifier = Modifier.fillMaxWidth())
-            HorizontalDivider(color = NavyPrimary)
-            Text("Activity Trend", color = Color.White, fontWeight = FontWeight.Bold)
-            SimpleBarChart(data = mapOf("W1" to 400.0, "W2" to 320.0, "W3" to 580.0, "W4" to 200.0), modifier = Modifier.height(150.dp).padding(16.dp))
-            Card(colors = CardDefaults.cardColors(NavySurface), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) { Text("Efficiency", color = Color.White, fontWeight = FontWeight.Bold); Text("Budget adherence is at 85%. Good job!", color = TextMuted, fontSize = 12.sp) }
+        if (stats.transactionCount == 0) { 
+            Icon(Icons.Default.Assessment, null, tint = TextMuted, modifier = Modifier.size(80.dp))
+            Text("No financial data available for reports yet.", color = TextMuted, textAlign = TextAlign.Center, fontWeight = FontWeight.Medium) 
+        } else {
+            Text("Monthly Financial Summary", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            
+            Card(colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ReportRow("Allowance", "P${stats.allowance.toInt()}")
+                    ReportRow("Total Spent", "P${stats.totalSpent.toInt()}")
+                    ReportRow("Budget Allocated", "P${stats.allocated.toInt()}")
+                    ReportRow("Committed Bills", "P${stats.committed.toInt()}")
+                    HorizontalDivider(color = NavyPrimary)
+                    ReportRow("Net Remaining", "P${stats.remaining.toInt()}", isBold = true, valueColor = Color.Green)
+                }
+            }
+            
+            Text("Spending Distribution", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            SpendingDonutChart(categoryBreakdown, modifier = Modifier.fillMaxWidth())
+            
+            Card(colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(20.dp)) {
+                    Text("AI Analysis", color = CoralOrange, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text("Based on your current spending, you are tracking well against your allowance. Consider moving P${(stats.remaining * 0.2).toInt()} into your savings goal to accelerate your progress.", color = TextPrimary, fontSize = 14.sp, lineHeight = 20.sp)
+                }
             }
         }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+fun ReportRow(label: String, value: String, isBold: Boolean = false, valueColor: Color = Color.White) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, color = TextMuted, fontSize = 14.sp, fontWeight = if(isBold) FontWeight.Bold else FontWeight.Medium)
+        Text(value, color = valueColor, fontSize = 16.sp, fontWeight = if(isBold) FontWeight.Bold else FontWeight.SemiBold)
     }
 }
 
@@ -760,7 +948,8 @@ fun ComingSoonView(feature: String) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(Icons.Default.Construction, null, tint = CoralOrange, modifier = Modifier.size(64.dp))
             Spacer(Modifier.height(16.dp))
-            Text("$feature: Development in progress", color = Color.White, fontWeight = FontWeight.Bold)
+            Text("$feature: Coming Soon", color = Color.White, fontWeight = FontWeight.Bold)
+            Text("We are working hard to bring this feature to you.", color = TextMuted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
         }
     }
 }

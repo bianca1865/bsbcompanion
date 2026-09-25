@@ -9,20 +9,60 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.util.*
 
 /**
  * STUDENT360 - Central System ViewModel
  * Requirement: State preservation across pages and visual dashboard data calculation.
+ * Updated to handle accurate financial data and integrated with BsbStudentService.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class CompanionViewModel(private val repository: Repository) : ViewModel() {
 
     private val aiService = Student360AIService(repository)
+    private val bsbService: BsbStudentService = BsbStudentServiceImpl(repository)
 
+    // --- BSB SERVICE INTEGRATION ---
+    private val _simulatedDay = MutableStateFlow(Calendar.getInstance().get(Calendar.DAY_OF_MONTH))
+    val simulatedDay = _simulatedDay.asStateFlow()
+
+    private val _freeDataMode = MutableStateFlow(true)
+    val freeDataMode = _freeDataMode.asStateFlow()
+
+    private val _roundUpSavingsEnabled = MutableStateFlow(false)
+    val roundUpSavingsEnabled = _roundUpSavingsEnabled.asStateFlow()
+
+    val studentProfile: StateFlow<StudentProfile> = bsbService.getStudentProfile()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StudentProfile())
+
+    val financialSummary: StateFlow<FinancialSummary> = _simulatedDay.flatMapLatest { day ->
+        bsbService.getFinancialSummary(day)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), FinancialSummary(0.0, 0.0, 0.0, 0.0, 0.0, 30, 0.0, PacingStatus.ON_PACE, 85, "Good", "Keep it up"))
+
+    val categorySpends: StateFlow<List<CategorySpendItem>> = bsbService.getCategorySpends()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val committedBills: StateFlow<List<CommittedBillItem>> = _simulatedDay.flatMapLatest { day ->
+        bsbService.getCommittedBills(day)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val aiInsights: StateFlow<List<FinancialInsight>> = _simulatedDay.flatMapLatest { day ->
+        bsbService.getAiInsights(day)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // --- CORE DATA FLOWS ---
     val expenses: StateFlow<List<Expense>> = repository.expenses
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    // Also provide List<ExpenseItem> for components that expect it
+    val expenseItems: StateFlow<List<ExpenseItem>> = repository.expenses.map { list ->
+        list.map { ExpenseItem(it.merchant, it.amount, it.category, it.timestamp) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val recurringExpenses: StateFlow<List<RecurringExpense>> = repository.recurringExpenses
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -39,21 +79,79 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     private val _dashboardInsight = MutableStateFlow("Welcome! Let's get your finances organised.")
     val dashboardInsight: StateFlow<String> = _dashboardInsight.asStateFlow()
 
-    // --- DASHBOARD DATA (Real-time calculations for visuals) ---
+    // Mapping for UI components that expect StudentSavingsGoal
+    val studentSavingsGoals: StateFlow<List<StudentSavingsGoal>> = repository.savingsGoals.map { list ->
+        list.map { goal ->
+            StudentSavingsGoal(
+                id = goal.id.toString(),
+                title = goal.name,
+                targetAmount = goal.targetAmount,
+                currentAmount = goal.currentAmount,
+                iconEmoji = "🎯",
+                targetMonth = goal.deadline ?: "Dec 2026"
+            )
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val weeklySpending: StateFlow<Map<String, Double>> = expenses.map { list ->
-        val weekMap = mutableMapOf("Week 1" to 0.0, "Week 2" to 0.0, "Week 3" to 0.0, "Week 4" to 0.0)
-        list.forEach { exp ->
-            val day = exp.date.split(" ").firstOrNull()?.toIntOrNull() ?: 1
-            when {
-                day <= 7 -> weekMap["Week 1"] = weekMap["Week 1"]!! + exp.amount
-                day <= 14 -> weekMap["Week 2"] = weekMap["Week 2"]!! + exp.amount
-                day <= 21 -> weekMap["Week 3"] = weekMap["Week 3"]!! + exp.amount
-                else -> weekMap["Week 4"] = weekMap["Week 4"]!! + exp.amount
+    // --- ACCURATE FINANCIAL FIGURES (Requirement 3) ---
+    val dashboardStats = combine(userProfile, expenses, budgetAllocations, recurringExpenses, savingsGoals) { profile, exps, allocs, recurrings, goals ->
+        val allowance = profile?.monthlyAllowance ?: 0.0
+        val totalSpent = exps.sumOf { it.amount }
+        val allocated = allocs.sumOf { it.allocatedAmount }
+        val committed = recurrings.filter { !it.isPaid }.sumOf { it.amount }
+        val savings = goals.sumOf { it.currentAmount }
+        val remaining = (allowance - totalSpent - committed).coerceAtLeast(0.0)
+        
+        DashboardStats(
+            allowance = allowance,
+            totalSpent = totalSpent,
+            allocated = allocated,
+            committed = committed,
+            remaining = remaining,
+            savings = savings,
+            transactionCount = exps.size
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DashboardStats())
+
+    // --- WEEKLY ANALYTICS ---
+    val weeklySpending: StateFlow<List<WeeklyDataPoint>> = expenses.map { list ->
+        calculateWeeklyData(list)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private fun calculateWeeklyData(expenses: List<Expense>): List<WeeklyDataPoint> {
+        val calendar = Calendar.getInstance(Locale.ENGLISH)
+        calendar.firstDayOfWeek = Calendar.SUNDAY
+        
+        // Reset to start of current week (Sunday 00:00)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        while (calendar.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
+            calendar.add(Calendar.DAY_OF_YEAR, -1)
+        }
+        val weekStart = calendar.timeInMillis
+        
+        calendar.add(Calendar.DAY_OF_YEAR, 7)
+        val weekEnd = calendar.timeInMillis
+        
+        val days = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+        val dailyTotals = MutableList(7) { 0.0 }
+        
+        expenses.filter { it.timestamp in weekStart until weekEnd }.forEach { exp ->
+            calendar.timeInMillis = exp.timestamp
+            val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+            // Calendar.SUNDAY = 1, ..., Calendar.SATURDAY = 7
+            val index = dayOfWeek - 1
+            if (index in 0..6) {
+                dailyTotals[index] += exp.amount
             }
         }
-        weekMap
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), mapOf("Week 1" to 0.0, "Week 2" to 0.0, "Week 3" to 0.0, "Week 4" to 0.0))
+        
+        return days.mapIndexed { index, name ->
+            WeeklyDataPoint(name, dailyTotals[index])
+        }
+    }
 
     val categoryBreakdown: StateFlow<Map<String, Double>> = expenses.map { list ->
         list.groupBy { it.category }.mapValues { it.value.sumOf { e -> e.amount } }
@@ -101,7 +199,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         viewModelScope.launch {
             _isThinking.value = true
             val response = aiService.generateResponse(trimmed)
-            kotlinx.coroutines.delay(5000)
+            delay(1500) 
             chatMessages.add("AI" to response)
             _isThinking.value = false
         }
@@ -113,12 +211,108 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         val allocated = alloc.sumOf { it.allocatedAmount }
 
         _dashboardInsight.value = when {
-            allowance <= 0 -> "Let's start by setting up your allowance and adding your first expense."
-            spent == 0.0 && alloc.isEmpty() -> "Welcome ${profile?.firstName}! You have P$allowance to plan. Add your first budget allocation."
-            spent > allowance -> "Warning: You've spent more than your allowance by P${spent - allowance}."
-            spent > (allowance * 0.9) -> "Careful! You've used over 90% of your allowance."
-            allocated > allowance -> "Your planned allocations exceed your allowance. Use 'Optimise' to fix it."
-            else -> "You have P${(allowance - spent).toInt()} remaining. You're doing great!"
+            allowance <= 0 -> "Set your monthly allowance to start planning your budget."
+            spent == 0.0 && alloc.isEmpty() -> "Welcome ${profile?.firstName ?: "Student"}! Let's get your finances organised."
+            spent > allowance -> "Warning: You've spent more than your allowance."
+            else -> "You're doing great!"
+        }
+    }
+
+    // --- SERVICE ACTIONS ---
+    fun advanceSimulatedDay() { _simulatedDay.value = (_simulatedDay.value % 30) + 1 }
+    fun toggleFreeDataMode() { _freeDataMode.value = !_freeDataMode.value }
+    fun toggleRoundUpSavings() { _roundUpSavingsEnabled.value = !_roundUpSavingsEnabled.value }
+
+    fun logStudentExpense(title: String, amount: Double, category: String) {
+        viewModelScope.launch {
+            bsbService.logQuickExpense(title, amount, category)
+        }
+    }
+
+    fun deleteExpenseItem(expense: Expense) {
+        viewModelScope.launch { repository.deleteExpense(expense) }
+    }
+    
+    fun deleteExpenseItem(item: ExpenseItem) {
+        viewModelScope.launch {
+            val exp = repository.expenses.first().find { it.merchant == item.title && it.amount == item.amount && it.timestamp == item.timestamp }
+            if (exp != null) repository.deleteExpense(exp)
+        }
+    }
+
+    fun simulatePaydayDeposit(amount: Double) {
+        viewModelScope.launch { bsbService.simulateAllowanceDeposit(amount) }
+    }
+
+    fun toggleBillRingFence(billId: Int, isCurrentlyRingFenced: Boolean) {
+        viewModelScope.launch { bsbService.setRingFenced(billId, !isCurrentlyRingFenced) }
+    }
+
+    fun settleBillNow(billId: Int) {
+        viewModelScope.launch { bsbService.settleBillNow(billId) }
+    }
+
+    fun transferToSesameSavings(amount: Double) {
+        viewModelScope.launch { bsbService.transferToSavings(amount) }
+    }
+
+    fun addCommittedBill(title: String, amount: Double, dueDay: Int, category: String) {
+        viewModelScope.launch { bsbService.addCommittedBill(title, amount, dueDay, category) }
+    }
+
+    fun rebalanceCategoryBudget(categoryName: String, newBudget: Double) {
+        viewModelScope.launch { bsbService.rebalanceCategoryBudget(categoryName, newBudget) }
+    }
+
+    fun batchImportStatementTransactions(transactions: List<StatementTransaction>) {
+        viewModelScope.launch {
+            transactions.filter { it.isSelected }.forEach { tx ->
+                bsbService.logQuickExpense(tx.description, tx.amount, tx.category)
+            }
+        }
+    }
+
+    fun importOcrReceipt(receipt: ScannedOcrReceipt) {
+        viewModelScope.launch {
+            bsbService.logQuickExpense(receipt.merchant, receipt.totalAmount, receipt.category)
+        }
+    }
+
+    fun applyFullAllowanceAllocation(preset: AllowanceAllocationPreset) {
+        viewModelScope.launch {
+            bsbService.rebalanceCategoryBudget("Rent & Accommodation", preset.rent)
+            bsbService.rebalanceCategoryBudget("Food & Meals", preset.food)
+            bsbService.rebalanceCategoryBudget("Transport & Kombi", preset.transport)
+            bsbService.rebalanceCategoryBudget("Study Materials", preset.study)
+            bsbService.rebalanceCategoryBudget("Savings Reserve", preset.savings)
+        }
+    }
+
+    fun simulateNotificationAlert(title: String, message: String) {
+        // Placeholder for triggering local notification
+    }
+
+    fun executeBsbPayment(payee: String, amount: Double, ref: String, category: String, token: String?, callback: (BsbPaymentReceipt) -> Unit) {
+        viewModelScope.launch {
+            val receipt = BsbPaymentReceipt(
+                referenceNumber = "BSB-${(100000..999999).random()}",
+                payeeName = payee,
+                amount = amount,
+                fromAccount = "10243950621",
+                tokenCode = token
+            )
+            bsbService.logQuickExpense("Paid: $payee", amount, category)
+            callback(receipt)
+        }
+    }
+
+    fun depositToSavingsGoal(goalId: String, amount: Double) {
+        viewModelScope.launch {
+            val goal = repository.savingsGoals.first().find { it.id.toString() == goalId }
+            if (goal != null) {
+                repository.updateGoal(goal.copy(currentAmount = goal.currentAmount + amount))
+                bsbService.transferToSavings(amount)
+            }
         }
     }
 
@@ -130,9 +324,29 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         }
     }
 
+    fun updateTheme(isDark: Boolean) {
+        viewModelScope.launch {
+            val current = userProfile.value ?: UserProfile()
+            repository.updateProfile(current.copy(isDarkMode = isDark))
+        }
+    }
+
+    fun updateNotificationSetting(type: String, enabled: Boolean) {
+        viewModelScope.launch {
+            val current = userProfile.value ?: UserProfile()
+            val updated = when(type) {
+                "rent" -> current.copy(rentReminder = enabled)
+                "budget" -> current.copy(budgetAlerts = enabled)
+                "savings" -> current.copy(savingsReminders = enabled)
+                else -> current
+            }
+            repository.updateProfile(updated)
+        }
+    }
+
     fun signup(firstName: String, lastName: String, email: String, password: String, institution: String, allowance: Double) {
         viewModelScope.launch {
-            repository.updateProfile(UserProfile(id = 1, firstName = firstName, lastName = lastName, email = email, password = password, institution = institution, monthlyAllowance = allowance, isLoggedIn = true, hasCompletedOnboarding = false))
+            repository.updateProfile(UserProfile(id = 1, firstName = firstName, lastName = lastName, email = email, password = password, institution = institution, monthlyAllowance = allowance, isLoggedIn = true, hasCompletedOnboarding = true))
         }
     }
 
@@ -149,49 +363,47 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     }
 
     fun logout() { viewModelScope.launch { repository.setLoginStatus(false) } }
-    fun updateProfile(profile: UserProfile) { viewModelScope.launch { repository.updateProfile(profile) } }
-    fun addManualExpense(merchant: String, amount: Double, category: String) {
+    
+    fun updateProfile(profile: UserProfile) {
+        viewModelScope.launch { repository.updateProfile(profile) }
+    }
+
+    fun updateProfileDetails(firstName: String, lastName: String, email: String, institution: String, allowance: Double) {
         viewModelScope.launch {
-            repository.addExpense(Expense(merchant = merchant, amount = amount, category = category, date = "${Calendar.getInstance().get(Calendar.DAY_OF_MONTH)} ${getMonthName()}", type = "Manual"))
-            updateSpentInAllocation(category, amount)
+            val current = userProfile.value ?: UserProfile()
+            repository.updateProfile(current.copy(
+                firstName = firstName,
+                lastName = lastName,
+                email = email,
+                institution = institution,
+                monthlyAllowance = allowance
+            ))
         }
     }
 
-    private fun getMonthName(): String = when(Calendar.getInstance().get(Calendar.MONTH)) {
-        Calendar.JANUARY -> "Jan"; Calendar.FEBRUARY -> "Feb"; Calendar.MARCH -> "Mar"
-        Calendar.APRIL -> "Apr"; Calendar.MAY -> "May"; Calendar.JUNE -> "Jun"
-        Calendar.JULY -> "Jul"; Calendar.AUGUST -> "Aug"; Calendar.SEPTEMBER -> "Sep"
-        Calendar.OCTOBER -> "Oct"; Calendar.NOVEMBER -> "Nov"; Calendar.DECEMBER -> "Dec"
-        else -> ""
-    }
-
-    private fun updateSpentInAllocation(category: String, amount: Double) {
+    fun addManualExpense(merchant: String, amount: Double, category: String) {
         viewModelScope.launch {
-            val current = budgetAllocations.value.find { it.category.equals(category, ignoreCase = true) }
-            if (current != null) repository.updateAllocation(current.copy(spentAmount = current.spentAmount + amount))
+            val now = Calendar.getInstance()
+            val dateStr = SimpleDateFormat("dd MMM", Locale.getDefault()).format(now.time)
+            repository.addExpense(Expense(merchant = merchant, amount = amount, category = category, date = dateStr, type = "Manual", timestamp = now.timeInMillis))
         }
     }
 
     fun processScannedReceipt(merchant: String, amount: Double, date: String, category: String) {
         viewModelScope.launch {
-            repository.addExpense(Expense(merchant = merchant, amount = amount, category = category, date = date, type = "Scan"))
-            updateSpentInAllocation(category, amount)
+            repository.addExpense(Expense(merchant = merchant, amount = amount, category = category, date = date, type = "Scan", timestamp = System.currentTimeMillis()))
         }
     }
 
     fun processUploadedFile(uri: Uri) {
+        // Mock processing for now, but keeping it as a place holder for real integration
         viewModelScope.launch {
-            addManualExpense("Statement Upload", 450.0, "Groceries")
-            addManualExpense("Utility Bill", 150.0, "Data/WiFi")
+            addManualExpense("Uploaded Statement", 120.0, "Groceries")
         }
     }
 
     fun deleteExpense(expense: Expense) {
-        viewModelScope.launch {
-            repository.deleteExpense(expense)
-            val current = budgetAllocations.value.find { it.category == expense.category }
-            if (current != null) repository.updateAllocation(current.copy(spentAmount = (current.spentAmount - expense.amount).coerceAtLeast(0.0)))
-        }
+        viewModelScope.launch { repository.deleteExpense(expense) }
     }
 
     fun addAllocation(name: String, amount: Double, category: String, isRecurring: Boolean, dueDate: Int?) {
@@ -228,11 +440,29 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     }
 
     fun addSavingsGoal(name: String, target: Double) { viewModelScope.launch { repository.insertGoal(SavingsGoal(name = name, targetAmount = target)) } }
+    fun addSavingsGoal(title: String, target: Double, emoji: String, month: String) {
+        viewModelScope.launch { repository.insertGoal(SavingsGoal(name = title, targetAmount = target, deadline = month)) }
+    }
     fun updateSavingsGoal(goal: SavingsGoal) { viewModelScope.launch { repository.updateGoal(goal) } }
     fun deleteSavingsGoal(goal: SavingsGoal) { viewModelScope.launch { repository.deleteGoal(goal) } }
     suspend fun optimizeBudget(): String = aiService.getBudgetOptimizationAdvice()
     suspend fun generateAIResponse(query: String): String = aiService.generateResponse(query)
 }
+
+data class DashboardStats(
+    val allowance: Double = 0.0,
+    val totalSpent: Double = 0.0,
+    val allocated: Double = 0.0,
+    val committed: Double = 0.0,
+    val remaining: Double = 0.0,
+    val savings: Double = 0.0,
+    val transactionCount: Int = 0
+)
+
+data class WeeklyDataPoint(
+    val day: String,
+    val amount: Double
+)
 
 class CompanionViewModelFactory(private val repository: Repository) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
