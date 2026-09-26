@@ -13,9 +13,10 @@ import net.sqlcipher.database.SupportFactory
         RecurringExpense::class,
         BudgetAllocation::class,
         SavingsGoal::class,
-        UserProfile::class
+        UserProfile::class,
+        ChatMessage::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -24,6 +25,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun budgetAllocationDao(): BudgetAllocationDao
     abstract fun savingsGoalDao(): SavingsGoalDao
     abstract fun userProfileDao(): UserProfileDao
+    abstract fun chatMessageDao(): ChatMessageDao
 
     companion object {
         @Volatile

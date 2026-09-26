@@ -63,3 +63,11 @@ data class UserProfile(
     val budgetAlerts: Boolean = true,
     val savingsReminders: Boolean = true
 )
+
+@Entity(tableName = "chat_messages")
+data class ChatMessage(
+    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val sender: String, // "User" or "AI"
+    val text: String,
+    val timestamp: Long = System.currentTimeMillis()
+)

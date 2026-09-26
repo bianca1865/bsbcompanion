@@ -76,6 +76,9 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     val userProfile: StateFlow<UserProfile?> = repository.userProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val chatMessages: StateFlow<List<ChatMessage>> = repository.chatMessages
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _dashboardInsight = MutableStateFlow("Welcome! Let's get your finances organised.")
     val dashboardInsight: StateFlow<String> = _dashboardInsight.asStateFlow()
 
@@ -93,7 +96,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    // --- ACCURATE FINANCIAL FIGURES (Requirement 3) ---
+    // --- ACCURATE FINANCIAL FIGURES ---
     val dashboardStats = combine(userProfile, expenses, budgetAllocations, recurringExpenses, savingsGoals) { profile, exps, allocs, recurrings, goals ->
         val allowance = profile?.monthlyAllowance ?: 0.0
         val totalSpent = exps.sumOf { it.amount }
@@ -141,7 +144,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         expenses.filter { it.timestamp in weekStart until weekEnd }.forEach { exp ->
             calendar.timeInMillis = exp.timestamp
             val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
-            // Calendar.SUNDAY = 1, ..., Calendar.SATURDAY = 7
             val index = dayOfWeek - 1
             if (index in 0..6) {
                 dailyTotals[index] += exp.amount
@@ -170,9 +172,14 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     var activeMoreModal by mutableStateOf<String?>(null)
     var moreScrollValue by mutableStateOf(0)
 
-    val chatMessages = mutableStateListOf<Pair<String, String>>()
     private val _isThinking = MutableStateFlow(false)
     val isThinking: StateFlow<Boolean> = _isThinking.asStateFlow()
+
+    // --- GEMINI DIAGNOSTIC STATE ---
+    private val _geminiStatus = MutableStateFlow<Student360AIService.GeminiStatus?>(null)
+    val geminiStatus = _geminiStatus.asStateFlow()
+
+    val isOrbitConfigured = MutableStateFlow(aiService.isApiKeyConfigured())
 
     init {
         viewModelScope.launch {
@@ -186,22 +193,37 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
                 }
             }
         }
-        if (chatMessages.isEmpty()) {
-            chatMessages.add("AI" to "Hi! I'm Student360 Orbit. How can I help you manage your finances today!")
+        viewModelScope.launch {
+            val messages = repository.chatMessages.first()
+            if (messages.isEmpty()) {
+                repository.addChatMessage("AI", "Hi! I'm Student360 Orbit. How can I help you manage your finances today!")
+            }
+        }
+    }
+
+    fun runGeminiDiagnostic() {
+        viewModelScope.launch {
+            _isThinking.value = true
+            _geminiStatus.value = aiService.testGeminiConnection()
+            isOrbitConfigured.value = aiService.isApiKeyConfigured()
+            _isThinking.value = false
         }
     }
 
     fun sendMessage(query: String) {
         val trimmed = query.trim()
         if (trimmed.isBlank() || _isThinking.value) return
-        chatMessages.add("User" to trimmed)
-        orbitMessage = ""
+        
         viewModelScope.launch {
+            val currentHistory = repository.chatMessages.first().map { it.sender to it.text }
+            repository.addChatMessage("User", trimmed)
+            orbitMessage = ""
             _isThinking.value = true
-            val response = aiService.generateResponse(trimmed)
-            delay(1500) 
-            chatMessages.add("AI" to response)
+            val response = aiService.generateResponse(trimmed, currentHistory)
+            repository.addChatMessage("AI", response)
             _isThinking.value = false
+            // Update configuration status in case it was fixed
+            isOrbitConfigured.value = aiService.isApiKeyConfigured()
         }
     }
 
@@ -289,7 +311,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     }
 
     fun simulateNotificationAlert(title: String, message: String) {
-        // Placeholder for triggering local notification
+        // Placeholder
     }
 
     fun executeBsbPayment(payee: String, amount: Double, ref: String, category: String, token: String?, callback: (BsbPaymentReceipt) -> Unit) {
@@ -381,6 +403,18 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
         }
     }
 
+    fun changePassword(current: String, new: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            val profile = userProfile.value ?: return@launch
+            if (profile.password != current) {
+                onResult(false, "Current password is incorrect")
+            } else {
+                repository.updateProfile(profile.copy(password = new))
+                onResult(true, "Password changed successfully")
+            }
+        }
+    }
+
     fun addManualExpense(merchant: String, amount: Double, category: String) {
         viewModelScope.launch {
             val now = Calendar.getInstance()
@@ -396,7 +430,6 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     }
 
     fun processUploadedFile(uri: Uri) {
-        // Mock processing for now, but keeping it as a place holder for real integration
         viewModelScope.launch {
             addManualExpense("Uploaded Statement", 120.0, "Groceries")
         }
@@ -445,6 +478,7 @@ class CompanionViewModel(private val repository: Repository) : ViewModel() {
     }
     fun updateSavingsGoal(goal: SavingsGoal) { viewModelScope.launch { repository.updateGoal(goal) } }
     fun deleteSavingsGoal(goal: SavingsGoal) { viewModelScope.launch { repository.deleteGoal(goal) } }
+    fun clearChat() { viewModelScope.launch { repository.clearChat() } }
     suspend fun optimizeBudget(): String = aiService.getBudgetOptimizationAdvice()
     suspend fun generateAIResponse(query: String): String = aiService.generateResponse(query)
 }

@@ -77,3 +77,15 @@ interface UserProfileDao {
     @Query("UPDATE user_profile SET isLoggedIn = :isLoggedIn WHERE id = 1")
     suspend fun setLoginStatus(isLoggedIn: Boolean)
 }
+
+@Dao
+interface ChatMessageDao {
+    @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+    fun getAllMessagesFlow(): Flow<List<ChatMessage>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMessage(message: ChatMessage)
+
+    @Query("DELETE FROM chat_messages")
+    suspend fun clearChat()
+}

@@ -26,8 +26,6 @@ import com.example.viewmodel.WeeklyDataPoint
 
 /**
  * 1. Weekly Trend Bar Chart
- * Requirement 6 & 7: Exactly 7 days always displayed.
- * Requirement 10: Display P0 if no spending.
  */
 @Composable
 fun SimpleBarChart(
@@ -55,7 +53,7 @@ fun SimpleBarChart(
             ) {
                 Text(
                     text = "P${point.amount.toInt()}",
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 8.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -65,7 +63,7 @@ fun SimpleBarChart(
                         .fillMaxWidth()
                         .height((80 * animatedHeight).dp)
                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                        .background(if(point.amount > 0) CoralOrange else NavyPrimary.copy(alpha = 0.3f))
+                        .background(if(point.amount > 0) CoralOrange else NavyPrimary.coerceOnLight(0.1f))
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -80,8 +78,15 @@ fun SimpleBarChart(
 }
 
 /**
+ * Extension to adjust colors for light mode readability if needed
+ */
+@Composable
+fun Color.coerceOnLight(alpha: Float): Color {
+    return if (!isDarkThemeGlobal) this.copy(alpha = alpha) else this
+}
+
+/**
  * 2. Category Breakdown Donut Chart
- * Requirement 5: Spending category analysis from actual categorised transactions.
  */
 @Composable
 fun SpendingDonutChart(
@@ -98,7 +103,7 @@ fun SpendingDonutChart(
                 var startAngle = -90f
                 if (categories.isEmpty()) {
                     drawArc(
-                        color = NavyPrimary,
+                        color = if (isDarkThemeGlobal) NavyPrimary else Color.LightGray.copy(alpha = 0.3f),
                         startAngle = 0f,
                         sweepAngle = 360f,
                         useCenter = false,
@@ -119,8 +124,8 @@ fun SpendingDonutChart(
                 }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Spent", color = TextMuted, fontSize = 10.sp, style = MaterialTheme.typography.labelSmall)
-                Text("P${totalSum.toInt()}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp, style = MaterialTheme.typography.titleMedium)
+                Text("Spent", color = TextMuted, fontSize = 10.sp)
+                Text("P${totalSum.toInt()}", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
         
@@ -134,7 +139,7 @@ fun SpendingDonutChart(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(8.dp).clip(CircleShape).background(colorList.getOrElse(index) { Color.Gray }))
                         Spacer(Modifier.width(8.dp))
-                        Text("${entry.key}: P${entry.value.toInt()}", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                        Text("${entry.key}: P${entry.value.toInt()}", color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -144,7 +149,6 @@ fun SpendingDonutChart(
 
 /**
  * 3. Spending Utilisation Ring (Gauge)
- * Requirement 3: Financial figures for Dashboard.
  */
 @Composable
 fun AllowanceProgressRing(
@@ -162,7 +166,7 @@ fun AllowanceProgressRing(
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawArc(
-                color = NavyPrimary,
+                color = if (isDarkThemeGlobal) NavyPrimary else Color.LightGray.copy(alpha = 0.3f),
                 startAngle = 0f,
                 sweepAngle = 360f,
                 useCenter = false,
@@ -177,15 +181,14 @@ fun AllowanceProgressRing(
             )
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("${(targetProgress * 100).toInt()}%", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp, style = MaterialTheme.typography.headlineLarge)
-            Text("Used", color = TextMuted, fontSize = 10.sp, style = MaterialTheme.typography.labelSmall)
+            Text("${(targetProgress * 100).toInt()}%", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+            Text("Used", color = TextMuted, fontSize = 10.sp)
         }
     }
 }
 
 /**
  * 4. Category Performance Bars
- * Requirement 13: Budget bricks.
  */
 @Composable
 fun CategoryComparisonChart(
@@ -202,11 +205,11 @@ fun CategoryComparisonChart(
                 
                 Column {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(alloc.name, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text(alloc.name, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         Text("P${alloc.spentAmount.toInt()} / P${alloc.allocatedAmount.toInt()}", color = TextMuted, fontSize = 11.sp)
                     }
-                    Spacer(modifier = Modifier.height(6.6.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(NavyPrimary)) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(10.dp).clip(CircleShape).background(if (isDarkThemeGlobal) NavyPrimary else Color.LightGray.coerceOnLight(0.2f))) {
                         Box(modifier = Modifier
                             .fillMaxWidth(animatedWidth)
                             .fillMaxHeight()
@@ -222,7 +225,7 @@ fun CategoryComparisonChart(
 @Composable
 fun SummaryItem(label: String, value: String, color: Color) {
     Column {
-        Text(label, color = TextMuted, fontSize = 12.sp, style = MaterialTheme.typography.labelSmall)
-        Text(value, color = color, fontSize = 24.sp, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineLarge)
+        Text(label, color = TextMuted, fontSize = 12.sp)
+        Text(value, color = color, fontSize = 24.sp, fontWeight = FontWeight.Bold)
     }
 }

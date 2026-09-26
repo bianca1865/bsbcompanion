@@ -1,132 +1,186 @@
 package com.example.data
 
+import android.util.Log
+import com.example.BuildConfig
+import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.BlockThreshold
+import com.google.ai.client.generativeai.type.HarmCategory
+import com.google.ai.client.generativeai.type.SafetySetting
+import com.google.ai.client.generativeai.type.content
 import kotlinx.coroutines.flow.first
-import java.util.Calendar
-import kotlin.random.Random
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Orbit AI Service for Student360.
- * Requirement 2: Reasoning layer capable of understanding financial context.
+ * Powered by Google Gemini.
+ * Diagnosis and Fix implementation.
  */
 class Student360AIService(private val repository: Repository) {
 
+    private val TAG = "Student360AIService"
+
+    // Diagnosis status
+    enum class GeminiStatus {
+        SUCCESS,
+        API_KEY_MISSING,
+        API_KEY_PLACEHOLDER,
+        UNAUTHORIZED,
+        RATE_LIMITED,
+        NETWORK_ERROR,
+        INVALID_MODEL,
+        PARSING_ERROR,
+        UNKNOWN_ERROR
+    }
+
     /**
-     * Requirement 10: Structured Financial Context
-     * Generates a reasoning-based response by analyzing actual Student360 data.
+     * Checks if the API key is configured without exposing the key itself.
      */
-    suspend fun generateResponse(query: String): String {
-        val user = repository.userProfile.first()
-        val userName = user?.firstName ?: "Student"
-        val expenses = repository.expenses.first()
-        val allocations = repository.budgetAllocations.first()
-        val recurring = repository.recurringExpenses.first()
-        val allowance = user?.monthlyAllowance ?: 0.0
+    fun isApiKeyConfigured(): Boolean {
+        val apiKey = try { BuildConfig.GEMINI_API_KEY } catch (e: Exception) { "" }
+        return apiKey.isNotEmpty() && apiKey != "MY_GEMINI_API_KEY" && apiKey != "unused"
+    }
 
-        // --- Requirement 11: Authoritative Calculations ---
-        val totalSpent = expenses.sumOf { it.amount }
-        val remainingAllowance = allowance - totalSpent
+    /**
+     * Diagnostic check for the Gemini connection.
+     * Performs a lightweight request to verify the entire pipeline.
+     */
+    suspend fun testGeminiConnection(): GeminiStatus {
+        val apiKey = try { BuildConfig.GEMINI_API_KEY } catch (e: Exception) { "" }
         
-        // Committed Money (Requirement 6): Unpaid upcoming bills
-        val upcomingCommitments = recurring.filter { !it.isPaid }.sumOf { it.amount }
+        Log.d(TAG, "Diagnostic: Gemini API key configured: ${isApiKeyConfigured()}")
         
-        // Flexible Money (Requirement 6): Money left after spending AND commitments
-        val flexibleMoney = (remainingAllowance - upcomingCommitments).coerceAtLeast(0.0)
+        if (apiKey.isEmpty()) {
+            Log.e(TAG, "Diagnostic: API Key is missing from BuildConfig")
+            return GeminiStatus.API_KEY_MISSING
+        }
         
-        val lowerQuery = query.trim().lowercase()
+        if (apiKey == "MY_GEMINI_API_KEY" || apiKey == "unused") {
+            Log.e(TAG, "Diagnostic: API Key is still a placeholder")
+            return GeminiStatus.API_KEY_PLACEHOLDER
+        }
 
-        // --- Requirement 3 & 13: Financial Reasoning Result-based ---
-        
-        // 1. AFFORDABILITY REASONING (Requirement 3)
-        if (lowerQuery.contains("afford") || lowerQuery.contains("can i buy") || lowerQuery.contains("spend")) {
-            val amountMatch = "\\d+".toRegex().find(query)
-            val cost = amountMatch?.value?.toDoubleOrNull() ?: 0.0
+        return try {
+            // Using a specific model and simple prompt for connection test
+            val testModel = GenerativeModel(modelName = "gemini-1.5-flash", apiKey = apiKey)
+            val response = testModel.generateContent("Reply with the word CONNECTED.")
+            val responseText = response.text?.trim()
             
-            if (cost == 0.0) return "To help you figure out if you can afford it, please tell me the price!"
-            
-            return if (cost > flexibleMoney) {
-                "$userName, you have P${remainingAllowance.toInt()} available right now, but P${upcomingCommitments.toInt()} is needed for upcoming bills. That leaves you with P${flexibleMoney.toInt()} in flexible money. Spending P${cost.toInt()} would exceed your flexible amount by P${(cost - flexibleMoney).toInt()} and might make it hard to cover your commitments!"
+            if (responseText?.contains("CONNECTED", ignoreCase = true) == true) {
+                Log.d(TAG, "Diagnostic: Connection test SUCCESS")
+                GeminiStatus.SUCCESS
             } else {
-                "Yes! After accounting for your P${upcomingCommitments.toInt()} in committed expenses, you still have P${flexibleMoney.toInt()} in flexible money. Spending P${cost.toInt()} fits comfortably within your current budget!"
+                Log.e(TAG, "Diagnostic: Unexpected response format: $responseText")
+                GeminiStatus.PARSING_ERROR
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Diagnostic: Connection test failed", e)
+            mapExceptionToStatus(e)
         }
+    }
 
-        // 2. TRANSACTION ANALYSIS (Requirement 5)
-        if (lowerQuery.contains("spent") || lowerQuery.contains("spending") || lowerQuery.contains("transactions") || lowerQuery.contains("biggest")) {
-            if (expenses.isEmpty()) return "I don't see any transactions in your record yet! Once you scan some receipts or upload a statement, I can identify patterns and the biggest expenses for you."
-            
-            val categorySpending = expenses.groupBy { it.category }.mapValues { it.value.sumOf { e -> e.amount } }
-            val topCategory = categorySpending.maxByOrNull { it.value }
-            val biggestExpense = expenses.maxByOrNull { it.amount }
-            
-            var report = "You've spent P${totalSpent.toInt()} so far this month. Your largest category is ${topCategory?.key} at P${topCategory?.value?.toInt()}."
-            
-            if (lowerQuery.contains("biggest") && biggestExpense != null) {
-                report = "Your biggest single expense was P${biggestExpense.amount.toInt()} at ${biggestExpense.merchant}."
-            }
-
-            // Reasoning about Patterns (Requirement 7)
-            if ((categorySpending["Food"] ?: 0.0) > (allowance * 0.3)) {
-                report += "\n\nI noticed you're spending over 30% of your allowance on food. Weekend takeout might be driving this up—maybe try meal prepping to free up some flexible money!"
-            }
-            
-            return report
+    private fun mapExceptionToStatus(e: Exception): GeminiStatus {
+        val msg = e.message ?: ""
+        return when {
+            msg.contains("403") || msg.contains("permission", ignoreCase = true) || msg.contains("API_KEY_INVALID") -> GeminiStatus.UNAUTHORIZED
+            msg.contains("429") -> GeminiStatus.RATE_LIMITED
+            msg.contains("400") -> GeminiStatus.INVALID_MODEL
+            msg.contains("Unable to resolve host") || msg.contains("timeout") || msg.contains("NetworkError") -> GeminiStatus.NETWORK_ERROR
+            else -> GeminiStatus.UNKNOWN_ERROR
         }
+    }
 
-        // 3. BUDGET REASONING (Requirement 6)
-        if (lowerQuery.contains("budget") || lowerQuery.contains("how am i doing") || lowerQuery.contains("overspending")) {
-            val overAllocated = allocations.filter { it.spentAmount > it.allocatedAmount }
-            if (overAllocated.isNotEmpty()) {
-                val cat = overAllocated.first()
-                return "You're currently over budget in ${cat.category} by P${(cat.spentAmount - cat.allocatedAmount).toInt()}. Since you have P${flexibleMoney.toInt()} in flexible money, you might want to move some funds to cover this category."
-            }
-            if (totalSpent > allowance) {
-                return "You've spent P${totalSpent.toInt()}, which is P${(totalSpent - allowance).toInt()} over your total allowance. We should look at your upcoming payments to see what can be adjusted."
-            }
-            return "You're on track, $userName! Every category is currently within its allocated budget, and you have P${flexibleMoney.toInt()} left after all commitments are considered."
-        }
-
-        // 4. REMAINING BALANCE REASONING
-        if (lowerQuery.contains("left") || lowerQuery.contains("remaining") || lowerQuery.contains("how much money")) {
-            return "You have P${remainingAllowance.toInt()} left from your allowance, but remember that P${upcomingCommitments.toInt()} is already committed to upcoming bills. This leaves you with P${flexibleMoney.toInt()} that is truly flexible to spend!"
-        }
-
-        // 5. GENERAL FINANCIAL REASONING (Requirement 8)
-        if (lowerQuery.contains("emergency fund")) {
-            return "An emergency fund is a safety net set aside for unexpected costs like phone repairs or urgent travel! For a student, aiming for P500 to P1,000 is a great first goal to prevent debt when life gets messy."
-        }
-        
-        if (lowerQuery.contains("need") && lowerQuery.contains("want")) {
-            return "Needs are essentials like rent, groceries, and tuition. Wants are for fun, like movies or new clothes! A healthy budget prioritises 100% of your needs before you spend anything on wants."
-        }
-
-        if (lowerQuery.contains("save") || lowerQuery.contains("saving")) {
-            return "To save more effectively, $userName, I recommend the 50/30/20 rule: 50% for needs, 30% for wants, and 20% for savings! Based on your P${allowance.toInt()} allowance, you could aim to save P${(allowance * 0.2).toInt()} monthly."
-        }
-
-        // DEFAULT SUPPORTIVE PERSONALITY (Requirement 14)
-        val defaults = listOf(
-            "Hi $userName! I'm Orbit, your financial companion! I've analysed your P${allowance.toInt()} allowance and P${totalSpent.toInt()} spending. What can I help you with today?",
-            "Hello! Orbit here. I can help you track your P${flexibleMoney.toInt()} flexible money or check if you're over budget. Ask me anything!",
-            "I'm ready to help, $userName! We can look at your upcoming P${upcomingCommitments.toInt()} in bills or talk about saving for your next goal!"
+    private val generativeModel by lazy {
+        GenerativeModel(
+            modelName = "gemini-1.5-flash",
+            apiKey = BuildConfig.GEMINI_API_KEY,
+            safetySettings = listOf(
+                SafetySetting(HarmCategory.HARASSMENT, BlockThreshold.MEDIUM_AND_ABOVE),
+                SafetySetting(HarmCategory.HATE_SPEECH, BlockThreshold.MEDIUM_AND_ABOVE),
+                SafetySetting(HarmCategory.SEXUALLY_EXPLICIT, BlockThreshold.MEDIUM_AND_ABOVE),
+                SafetySetting(HarmCategory.DANGEROUS_CONTENT, BlockThreshold.MEDIUM_AND_ABOVE),
+            )
         )
-        return defaults[Random.nextInt(defaults.size)]
+    }
+
+    suspend fun generateResponse(query: String, history: List<Pair<String, String>> = emptyList()): String {
+        Log.d(TAG, "generateResponse called with query: $query")
+        
+        if (!isApiKeyConfigured()) {
+            Log.e(TAG, "Configuration Error: GEMINI_API_KEY is not set correctly in local.properties")
+            return "Orbit's reasoning engine is not configured. Please set a valid GEMINI_API_KEY in your local.properties file."
+        }
+
+        return try {
+            val user = repository.userProfile.first()
+            val userName = user?.firstName ?: "Student"
+            val expenses = repository.expenses.first()
+            val allocations = repository.budgetAllocations.first()
+            val recurring = repository.recurringExpenses.first()
+            val goals = repository.savingsGoals.first()
+            val allowance = user?.monthlyAllowance ?: 0.0
+
+            val totalSpent = expenses.sumOf { it.amount }
+            val remainingAllowance = allowance - totalSpent
+            val upcomingCommitments = recurring.filter { !it.isPaid }.sumOf { it.amount }
+            val flexibleMoney = (remainingAllowance - upcomingCommitments).coerceAtLeast(0.0)
+
+            val systemInstructionText = """
+                IDENTITY: You are Orbit, a friendly financial companion for tertiary students.
+                USER: $userName
+                
+                LIVE DATA:
+                - Allowance: P${String.format(Locale.US, "%.2f", allowance)}
+                - Spent: P${String.format(Locale.US, "%.2f", totalSpent)}
+                - Remaining: P${String.format(Locale.US, "%.2f", remainingAllowance)}
+                - Upcoming Bills: P${String.format(Locale.US, "%.2f", upcomingCommitments)}
+                - Flexible Money: P${String.format(Locale.US, "%.2f", flexibleMoney)}
+                
+                BUDGET CATEGORIES:
+                ${allocations.joinToString("\n") { "- ${it.name}: P${it.allocatedAmount} allocated, P${it.spentAmount} spent" }}
+                
+                DATE: ${SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.US).format(Date())}
+                
+                RULES:
+                1. You are ORBIT. No mention of AI models or Gemini.
+                2. Use the LIVE DATA for accurate reasoning. Do not invent numbers.
+                3. Be conversational and supportive.
+                4. Maintain continuity using chat history.
+            """.trimIndent()
+
+            val geminiHistory = history.takeLast(10).map { (sender, text) ->
+                content(role = if (sender == "User") "user" else "model") { text(text) }
+            }
+
+            val chat = generativeModel.startChat(history = geminiHistory)
+            val fullPrompt = "System Context:\n$systemInstructionText\n\nUser Message: $query"
+            
+            val result = chat.sendMessage(fullPrompt)
+            val responseText = result.text
+            
+            if (responseText.isNullOrBlank()) {
+                Log.e(TAG, "Gemini returned empty response")
+                "I'm listening, but I couldn't quite find the right words. Could you try rephrasing that?"
+            } else {
+                Log.d(TAG, "Gemini response successful")
+                responseText
+            }
+
+        } catch (e: Exception) {
+            Log.e(TAG, "Gemini API Exception: ${e.message}", e)
+            val status = mapExceptionToStatus(e)
+            when (status) {
+                GeminiStatus.UNAUTHORIZED -> "I don't have permission to access my reasoning engine. Please verify the API key in local.properties."
+                GeminiStatus.RATE_LIMITED -> "I'm receiving too many requests right now. Please wait a moment."
+                GeminiStatus.NETWORK_ERROR -> "I'm having trouble reaching the internet. Please check your connection and try again."
+                GeminiStatus.INVALID_MODEL -> "My reasoning engine version is no longer supported. Please check for app updates."
+                else -> "I'm having a bit of trouble connecting to my reasoning engine (${e.javaClass.simpleName}). Please try again in a moment!"
+            }
+        }
     }
 
     suspend fun getBudgetOptimizationAdvice(): String {
-        val user = repository.userProfile.first() ?: return "Setup your profile first!"
-        val allocations = repository.budgetAllocations.first()
-        val allowance = user.monthlyAllowance
-        val userName = user.firstName
-        
-        if (allowance <= 0) return "Please set your monthly allowance in the Budget section first!"
-        
-        val totalAllocated = allocations.sumOf { it.allocatedAmount }
-        
-        return if (totalAllocated > allowance) {
-            val deficit = totalAllocated - allowance
-            "Orbit detected a deficit: your allocations exceed your allowance by P${deficit.toInt()}! I recommend reducing your non-essential budgets in categories like Entertainment to balance things out."
-        } else {
-            "Your budget is looking good! You have P${(allowance - totalAllocated).toInt()} remaining to allocate to your savings or flexible spending."
-        }
+        return generateResponse("Based on my data, give me one specific tip to save money.")
     }
 }

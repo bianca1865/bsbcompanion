@@ -168,7 +168,7 @@ fun SignupScreen(onSignup: (String, String, String, String, String, Double) -> U
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Student360Branding.Logo(size = 80.dp, showText = false)
+            Student360Branding.Logo(size = 80.dp)
             Text("Create Your Student360 Account", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Black, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             
             OutlinedTextField(value = firstName, onValueChange = { firstName = it }, label = { Text("First Name") }, modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Person, null) }, colors = authFieldColors(), singleLine = true)
